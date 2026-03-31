@@ -1,0 +1,19 @@
+---
+description: CRITICAL - Strategy to manage API limits now that Composer 1.5 is no longer free
+alwaysApply: true
+---
+# Mode Selection — Maximize Your API Allowance
+**Context:** Composer 1.5/1 now draw from your monthly limit. You must pivot to "Fast-First" to avoid being blocked.
+## 1. Use "Ask Mode" (Chat + Fast Model) — 80% of Work
+Use this for exploration, planning, and debugging.
+- **Models:** Gemini 1.5 Flash, GPT-4o-mini.
+- **Cost:** Extremely low (~$0.01 - $0.05 per request).
+- **Rule:** Never use Agent mode to "ask a question." Stay in Chat.
+## 2. Use "Agent Mode" (Composer) — Final Execution Only
+Only switch to Composer when you are ready to perform file edits.
+- **Models:** Composer-1.5, Claude 3.5 Sonnet.
+- **Cost:** High (~$0.50 - $1.50+ per request).
+- **Rule:** Refine the plan in Chat first, then say "Apply the plan" in Composer.
+## 3. Context Management (The Hidden Cost)
+- **Clear History:** Large chat threads (1M+ tokens) exponentially increase cost. Start a NEW thread for every new sub-task.
+- **Selective References:** Only @-reference the specific files needed. Avoid @Codebase for simple tasks.

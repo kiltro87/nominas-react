@@ -1,0 +1,13 @@
+{
+  "name": "nominas-react-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix app run dev --",
+    "build": "npm --prefix app run build",
+    "preview": "npm --prefix app run preview",
+    "lint": "npm --prefix app run lint",
+    "test": "npm --prefix app run test",
+    "test:ci": "npm --prefix app run test:ci",
+    "check": "npm --prefix app run check"
+  }
+}
