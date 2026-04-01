@@ -27,4 +27,12 @@ CREATE INDEX IF NOT EXISTS portfolio_transactions_ordering_idx
 CREATE INDEX IF NOT EXISTS portfolio_transactions_aeat_tipo_idx
   ON public.portfolio_transactions (aeat_tipo);
 
+ALTER TABLE public.portfolio_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "authenticated users can read portfolio"
+  ON public.portfolio_transactions
+  FOR SELECT
+  TO authenticated
+  USING (true);
+
 GRANT SELECT ON public.portfolio_transactions TO authenticated;
