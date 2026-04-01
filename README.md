@@ -196,6 +196,39 @@ cd pipeline
 python -m pytest -q
 ```
 
+> **Nunca subas al repo** `credentials.json` ni `config.json` — están en `.gitignore`.
+
+### Comportamiento de la ingesta
+
+**Qué escribe en Supabase:**
+- Tabla `nominas` — año, mes, concepto, importe, categoría, subcategoría, file_id, file_name
+- Tabla `control` — registro de cada PDF procesado con estado, md5, ruta en Drive y versión de reglas
+
+**Deduplicación:**
+- Por `file_id` — el mismo archivo no se reprocesa aunque se vuelva a ejecutar la ingesta
+- Por `md5_drive` — si se sube el mismo PDF con otro nombre, se detecta y se omite por contenido
+
+**Organización automática en Drive:**
+Cada PDF procesado se renombra a `Nómina <Mes> <Año>.pdf` y se mueve a una subcarpeta anual (`/2025`, `/2026`…). Si la subcarpeta no existe, se crea.
+
+**Procesado incremental:**
+La ingesta solo busca archivos modificados desde la última ejecución registrada en `control`, con un margen de seguridad.
+
+### Clasificación de conceptos
+
+`subcategorias.json` es el catálogo editable que mapea cada concepto de nómina a una subcategoría. Si añades un concepto nuevo o cambia el nombre en el PDF, edítalo aquí.
+
+### Cómo reprocesar un PDF concreto
+
+Si necesitas volver a procesar un archivo ya ingestado:
+
+```sql
+-- En el SQL Editor de Supabase
+DELETE FROM public.control WHERE file_id = '<id_del_archivo>';
+```
+
+Luego ejecuta la ingesta de nuevo. El `file_id` de cada archivo está visible en la pestaña `control` de Supabase.
+
 ### Automatización con GitHub Actions
 
 El workflow `ingesta_nominas.yml` se ejecuta:
