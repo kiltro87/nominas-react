@@ -1,0 +1,102 @@
+name: Ingesta Nominas Drive to Supabase
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximo de PDFs a procesar (opcional)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 8 1 * *"
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/**"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run syntax checks
+        run: python -m py_compile extractor.py drive_ingestor.py kpi_builder.py
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+  ingesta:
+    needs: tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write credentials and config
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SCHEMA: ${{ secrets.SUPABASE_SCHEMA }}
+        run: |
+          test -n "$GOOGLE_CREDENTIALS_JSON"
+          test -n "$DRIVE_FOLDER_ID"
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+          python - <<'PY'
+          import json
+          import os
+
+          cfg = {
+              "credentials_path": "credentials.json",
+              "drive_folder_id": os.environ["DRIVE_FOLDER_ID"],
+              "supabase_url": os.environ["SUPABASE_URL"],
+              "supabase_service_role_key": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+              "supabase_schema": os.environ.get("SUPABASE_SCHEMA", "public"),
+          }
+          with open("config.json", "w", encoding="utf-8") as f:
+              json.dump(cfg, f, ensure_ascii=False, indent=2)
+          PY
+
+      - name: Run payroll ingestor
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python drive_ingestor.py --config config.json --limit "${{ github.event.inputs.limit }}"
+          else
+            python drive_ingestor.py --config config.json
+          fi
