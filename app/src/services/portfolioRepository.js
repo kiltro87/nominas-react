@@ -25,7 +25,7 @@ export const fetchPortfolioData = async () => {
   const { data, error } = await supabase
     .from('portfolio_transactions')
     .select(
-      'id,file_name,operation_date,settlement_date,award_number,quantity,' +
+      'id,file_name,transaction_type,operation_date,settlement_date,award_number,quantity,' +
       'stock_price_usd,net_amount_usd,aeat_tipo,aeat_fecha,aeat_num_titulos,' +
       'conversion_rate,aeat_importe_eur,ordering,cumulative_qty'
     )
