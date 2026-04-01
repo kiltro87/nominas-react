@@ -67,7 +67,7 @@ export const useSupabaseAuth = () => {
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
       },
     });
     if (otpError) {
