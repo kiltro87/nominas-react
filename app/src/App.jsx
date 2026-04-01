@@ -761,81 +761,114 @@ const App = () => {
                   Evolucion de Acciones Acumuladas
                 </h2>
                 {/* Legend */}
-                <div className="flex items-center gap-5 text-xs font-semibold text-slate-500 mb-4">
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-blue-500 inline-block" /> Total</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-emerald-500 inline-block" /> RSU</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-amber-400 inline-block" /> ESPP</span>
+                <div className="flex flex-wrap items-center gap-5 text-xs font-medium text-slate-500 mb-5">
+                  <span className="flex items-center gap-2">
+                    <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#6366f1" strokeWidth="2" /></svg>
+                    Cartera neta
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
+                    RSU acumuladas
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#f97316" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
+                    ESPP acumuladas
+                  </span>
                 </div>
                 {(() => {
                   const pts = portfolio.transactions.filter((t) => t.cumulative_qty != null);
                   if (pts.length < 2) return <p className="text-sm text-slate-400">Datos insuficientes para el gráfico.</p>;
 
-                  // Compute running RSU and ESPP totals
+                  // Running totals by transaction_type (gross acquisitions, not reduced by trades)
                   let rsuAcc = 0;
                   let esppAcc = 0;
                   const enriched = pts.map((t) => {
-                    const name = (t.file_name || '').toLowerCase();
-                    const isRsu = name.includes('rsu') || (t.award_number != null && t.award_number !== '');
-                    const isEspp = name.includes('espp');
-                    const qty = t.aeat_num_titulos ?? Math.abs(t.quantity ?? 0);
-                    const sign = t.aeat_tipo === 'TR' ? -1 : 1;
-                    if (isRsu) rsuAcc = Math.max(0, rsuAcc + sign * qty);
-                    else if (isEspp) esppAcc = Math.max(0, esppAcc + sign * qty);
+                    const tt = (t.transaction_type || '').trim();
+                    const qty = Math.abs(t.aeat_num_titulos ?? t.quantity ?? 0);
+                    if (tt === 'Adquisition RSU') rsuAcc += qty;
+                    else if (tt === 'Adquisition ESPP') esppAcc += qty;
                     return { ...t, rsu_running: rsuAcc, espp_running: esppAcc };
                   });
 
-                  const maxVal = Math.max(...enriched.map((t) => Math.max(t.cumulative_qty, t.rsu_running, t.espp_running)), 1);
+                  const maxVal = Math.max(
+                    ...enriched.map((t) => Math.max(t.cumulative_qty ?? 0, t.rsu_running, t.espp_running)),
+                    1,
+                  );
 
-                  // X positions
-                  const xOf = (i) => (i / (enriched.length - 1)) * 82 + 14;
-                  // Y positions (chart area: y from 2 to 28, bottom = 28)
-                  const yOf = (v) => 28 - (v / maxVal) * 24;
+                  const L = 16; const R = 97; const T = 3; const B = 30;
+                  const xOf = (i) => L + (i / (enriched.length - 1)) * (R - L);
+                  const yOf = (v) => B - ((v / maxVal) * (B - T));
+                  const pointsOf = (field) => enriched.map((t, i) => `${xOf(i).toFixed(1)},${yOf(t[field] ?? 0).toFixed(1)}`).join(' ');
 
-                  const pointsOf = (field) => enriched.map((t, i) => `${xOf(i).toFixed(1)},${yOf(t[field]).toFixed(1)}`).join(' ');
-
-                  // Y axis ticks (4 levels)
+                  // Y axis ticks
                   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
                     value: Math.round(maxVal * f),
                     y: yOf(maxVal * f),
                   }));
 
-                  // X axis: show one label per year
+                  // X axis: one label per year (skip if too close to previous)
                   const yearLabels = [];
                   let lastYear = null;
+                  let lastX = -20;
                   enriched.forEach((t, i) => {
                     const yr = (t.aeat_fecha || t.operation_date || '').slice(0, 4);
-                    if (yr && yr !== lastYear) {
-                      yearLabels.push({ yr, x: xOf(i) });
+                    const x = xOf(i);
+                    if (yr && yr !== lastYear && x - lastX > 8) {
+                      yearLabels.push({ yr, x });
                       lastYear = yr;
+                      lastX = x;
                     }
                   });
 
+                  const SERIES = [
+                    { field: 'cumulative_qty', stroke: '#6366f1', width: '1', dash: null },
+                    { field: 'rsu_running',    stroke: '#0ea5e9', width: '0.75', dash: '2,1' },
+                    { field: 'espp_running',   stroke: '#f97316', width: '0.75', dash: '2,1' },
+                  ];
+
                   return (
-                    <svg viewBox="0 0 100 38" className="w-full h-64 rounded-xl">
-                      {/* Y axis grid + labels */}
+                    <svg viewBox="0 0 100 40" className="w-full h-64">
+                      {/* Grid + Y labels */}
                       {yTicks.map(({ value, y }) => (
-                        <g key={`ytick-${value}`}>
-                          <line x1="13" y1={y} x2="96" y2={y} stroke="#e2e8f0" strokeWidth="0.3" strokeDasharray="1,1" />
-                          <text x="12" y={y + 0.8} textAnchor="end" fontSize="2.2" fill="#94a3b8">{value}</text>
+                        <g key={`yt-${value}`}>
+                          <line x1={L} y1={y} x2={R} y2={y} stroke="#f1f5f9" strokeWidth="0.4" />
+                          <text x={L - 1} y={y + 0.9} textAnchor="end" fontSize="2.4" fill="#94a3b8">{value}</text>
                         </g>
                       ))}
-                      {/* Y axis line */}
-                      <line x1="13.5" y1="2" x2="13.5" y2="29" stroke="#cbd5e1" strokeWidth="0.4" />
-                      {/* X axis line */}
-                      <line x1="13.5" y1="29" x2="96" y2="29" stroke="#cbd5e1" strokeWidth="0.4" />
-                      {/* X axis year labels */}
+                      {/* Axes */}
+                      <line x1={L} y1={T} x2={L} y2={B} stroke="#e2e8f0" strokeWidth="0.4" />
+                      <line x1={L} y1={B} x2={R} y2={B} stroke="#e2e8f0" strokeWidth="0.4" />
+                      {/* Y axis label */}
+                      <text transform={`rotate(-90) translate(-${(T + B) / 2}, ${L - 8})`} textAnchor="middle" fontSize="2.2" fill="#94a3b8">Acciones</text>
+                      {/* X labels */}
                       {yearLabels.map(({ yr, x }) => (
-                        <text key={`xlabel-${yr}`} x={x} y="33" textAnchor="middle" fontSize="2.2" fill="#94a3b8">{yr}</text>
+                        <text key={`xl-${yr}`} x={x} y={B + 4} textAnchor="middle" fontSize="2.4" fill="#94a3b8">{yr}</text>
                       ))}
                       {/* Lines */}
-                      <polyline fill="none" stroke="#3b82f6" strokeWidth="0.9" strokeLinejoin="round" points={pointsOf('cumulative_qty')} />
-                      <polyline fill="none" stroke="#10b981" strokeWidth="0.7" strokeLinejoin="round" strokeDasharray="1.5,0.5" points={pointsOf('rsu_running')} />
-                      <polyline fill="none" stroke="#f59e0b" strokeWidth="0.7" strokeLinejoin="round" strokeDasharray="1.5,0.5" points={pointsOf('espp_running')} />
-                      {/* End-point dots */}
-                      {['cumulative_qty', 'rsu_running', 'espp_running'].map((field, fi) => {
+                      {SERIES.map(({ field, stroke, width, dash }) => (
+                        <polyline
+                          key={field}
+                          fill="none"
+                          stroke={stroke}
+                          strokeWidth={width}
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                          strokeDasharray={dash ?? undefined}
+                          points={pointsOf(field)}
+                        />
+                      ))}
+                      {/* End dots */}
+                      {SERIES.map(({ field, stroke }) => {
                         const last = enriched[enriched.length - 1];
-                        const colors = ['#3b82f6', '#10b981', '#f59e0b'];
-                        return <circle key={field} cx={xOf(enriched.length - 1)} cy={yOf(last[field])} r="1" fill={colors[fi]} />;
+                        return (
+                          <circle
+                            key={`dot-${field}`}
+                            cx={xOf(enriched.length - 1)}
+                            cy={yOf((last[field] ?? 0))}
+                            r="1.2"
+                            fill={stroke}
+                          />
+                        );
                       })}
                     </svg>
                   );
@@ -893,9 +926,12 @@ const App = () => {
                           <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                             <td className="py-2 pr-4 font-medium">{tx.aeat_fecha ?? tx.operation_date ?? '—'}</td>
                             <td className="py-2 pr-4">
-                              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${tx.aeat_tipo === 'AD' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                                {tx.aeat_tipo === 'AD' ? 'Adquisición' : tx.aeat_tipo === 'TR' ? 'Venta' : tx.aeat_tipo ?? '—'}
-                              </span>
+                              {(() => {
+                                const tt = tx.transaction_type || tx.aeat_tipo;
+                                const label = tt === 'Adquisition RSU' ? 'RSU' : tt === 'Adquisition ESPP' ? 'ESPP' : tt === 'Trade' || tt === 'TR' ? 'Venta' : tt ?? '—';
+                                const cls = tt === 'Trade' || tt === 'TR' ? 'bg-rose-50 text-rose-700' : tt === 'Adquisition RSU' ? 'bg-sky-50 text-sky-700' : 'bg-orange-50 text-orange-700';
+                                return <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${cls}`}>{label}</span>;
+                              })()}
                             </td>
                             <td className="py-2 pr-4 text-right">{isPrivacyMode ? '•••' : (tx.aeat_num_titulos ?? Math.abs(tx.quantity ?? 0) ?? '—')}</td>
                             <td className="py-2 pr-4 text-right">{isPrivacyMode ? '•••' : (tx.net_amount_usd != null ? `$${Math.abs(tx.net_amount_usd).toFixed(2)}` : '—')}</td>

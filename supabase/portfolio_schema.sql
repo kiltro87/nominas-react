@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.portfolio_transactions (
   id               BIGSERIAL PRIMARY KEY,
   file_name        TEXT        NOT NULL UNIQUE,  -- deduplication key (source PDF filename)
+  transaction_type TEXT,                         -- 'Adquisition RSU' | 'Adquisition ESPP' | 'Trade'
   operation_date   DATE,                         -- RELEASE_PURCHASE_TRADE_DATE
   settlement_date  DATE,                         -- SETL_DATE (trades/sells only)
   award_number     TEXT,                         -- RSU award ID
@@ -20,6 +21,10 @@ CREATE TABLE IF NOT EXISTS public.portfolio_transactions (
   cumulative_qty   NUMERIC,                       -- running total of shares held after this tx
   ingested_at      TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration: add transaction_type if upgrading an existing table
+ALTER TABLE public.portfolio_transactions
+  ADD COLUMN IF NOT EXISTS transaction_type TEXT;
 
 CREATE INDEX IF NOT EXISTS portfolio_transactions_ordering_idx
   ON public.portfolio_transactions (ordering ASC);

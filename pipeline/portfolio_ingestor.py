@@ -39,6 +39,7 @@ DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # Map Excel column names (lower-cased) → DB column names
 COLUMN_MAP: dict[str, str] = {
     "file_name": "file_name",
+    "transaction_type": "transaction_type",
     "release_purchase_trade_date": "operation_date",
     "setl_date": "settlement_date",
     "award_number": "award_number",
