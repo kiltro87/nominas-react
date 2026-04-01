@@ -87,6 +87,14 @@ def _build_base(df: pd.DataFrame) -> pd.DataFrame:
     out["is_no_irpf_concept"] = out["Concepto_norm"].str.contains("NO IRPF")
     out["is_espp_gain"] = out["Subcat_norm"] == "INGRESO VARIABLE (ESPP)"
     out["is_rsu_gain"] = out["Subcat_norm"] == "INGRESO VARIABLE (RSU)"
+    # Some PDFs embed the IRPF rate directly in the concept name, e.g.
+    # "TRIBUTACION I.R.P.F.33,17" — extract it as a decimal fraction.
+    _pct_raw = out["Concepto_norm"].str.extract(
+        r"TRIBUTACION\s+I\.R\.P\.F\.(\d+[,\.]\d+)", expand=False
+    )
+    out["irpf_pct_embedded"] = pd.to_numeric(
+        _pct_raw.str.replace(",", ".", regex=False), errors="coerce"
+    ) / 100.0
     out = out.dropna(subset=["Año", "Mes"])
     out["Año"] = out["Año"].astype(int)
     out["Mes"] = out["Mes"].astype(int)
@@ -146,8 +154,12 @@ def build_monthly_kpis(df_nominas: pd.DataFrame) -> pd.DataFrame:
                 "rsu_gain": rsu_gain,
                 "Periodo_natural": f"{MONTH_NAMES_ES.get(int(month), str(month))} {year}",
                 "irpf_pct_nomina": (
+                    # Priority 1: explicit "% IRPF" line (importe already is the rate)
                     g.loc[g["is_irpf_pct_concept"], "Importe"].iloc[0] / 100.0
                     if g["is_irpf_pct_concept"].any()
+                    # Priority 2: rate embedded in the concept name, e.g. "TRIBUTACION I.R.P.F.33,17"
+                    else g.loc[g["irpf_pct_embedded"].notna(), "irpf_pct_embedded"].iloc[0]
+                    if g["irpf_pct_embedded"].notna().any()
                     else None
                 ),
             }
