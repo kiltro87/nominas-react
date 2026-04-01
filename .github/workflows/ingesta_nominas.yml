@@ -39,7 +39,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run syntax checks
-        run: python -m py_compile extractor.py drive_ingestor.py kpi_builder.py
+        run: python -m py_compile extractor.py drive_ingestor.py
 
       - name: Run unit tests
         run: python -m pytest -q

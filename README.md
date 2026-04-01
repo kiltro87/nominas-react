@@ -73,12 +73,9 @@ nominas-react/
 │   └── package.json
 │
 ├── pipeline/                     ← Python: ingesta Drive → Supabase
-│   ├── extractor.py              ← Extrae texto/tablas del PDF, clasifica líneas
+│   ├── extractor.py              ← Extrae texto/tablas del PDF, clasifica y divide conceptos
 │   ├── drive_ingestor.py         ← Orquesta Drive → extracción → Supabase
-│   ├── kpi_builder.py            ← Calcula métricas mensuales y anuales
-│   ├── migrate_sheets_to_supabase.py  ← Migración inicial desde Google Sheets
-│   ├── sheets_client.py          ← Cliente Google Sheets
-│   ├── subcategorias.json        ← Catálogo concepto → subcategoría
+│   ├── subcategorias.json        ← Catálogo concepto → subcategoría (editable)
 │   ├── requirements.txt
 │   ├── runtime.txt
 │   ├── nominas_app/
@@ -87,8 +84,7 @@ nominas-react/
 │   │       └── config_loader.py     ← Carga config/secrets
 │   └── tests/
 │       ├── test_extractor_core.py
-│       ├── test_drive_ingestor.py
-│       └── test_kpi_builder.py
+│       └── test_drive_ingestor.py
 │
 ├── supabase/                     ← SQL completo del esquema
 │   ├── schema.sql                ← Tablas nominas + control + índices

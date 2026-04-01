@@ -319,6 +319,39 @@ def _match_subcategory(concept: str, rules: Tuple[Tuple[str, str], ...]) -> str:
     return "No clasificado"
 
 
+_IRPF_EMBEDDED_RE = re.compile(r"TRIBUTACION\s+I\.R\.P\.F\.(\d+)[,\.](\d+)", re.IGNORECASE)
+
+
+def split_irpf_embedded_pct_rows(sheet_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Split a concept like "TRIBUTACION I.R.P.F.33,17" into two DB rows:
+
+    1. The deduction row, renamed to "Tributación I.R.P.F." (amount unchanged).
+    2. A new "% IRPF" row with Categoría="Impuesto IRPF", Subcategoría="Porcentaje"
+       and Importe equal to the embedded percentage value (e.g. 33.17).
+
+    Rows whose concept does not contain an embedded rate are returned as-is.
+    """
+    result: List[Dict[str, Any]] = []
+    for row in sheet_rows:
+        m = _IRPF_EMBEDDED_RE.search(row.get("Concepto", ""))
+        if m:
+            pct = float(f"{m.group(1)}.{m.group(2)}")
+            result.append({**row, "Concepto": "Tributación I.R.P.F."})
+            result.append(
+                {
+                    "Año": row["Año"],
+                    "Mes": row["Mes"],
+                    "Concepto": "% IRPF",
+                    "Importe": round(pct, 2),
+                    "Categoría": "Impuesto IRPF",
+                    "Subcategoría": "Porcentaje",
+                }
+            )
+        else:
+            result.append(row)
+    return result
+
+
 def classify_entry(
     concept: str, dev: Optional[float], ded: Optional[float], rules: Tuple[Tuple[str, str], ...]
 ) -> Tuple[str, str, float]:
@@ -376,6 +409,8 @@ def extract_payroll(pdf_path: str) -> Dict[str, Any]:
                 "Subcategoría": subcategoria,
             }
         )
+
+    sheet_rows = split_irpf_embedded_pct_rows(sheet_rows)
 
     neto_calculado = round(total_dev - total_ded, 2)
     neto_pdf = round(liquido_pdf, 2) if liquido_pdf is not None else None

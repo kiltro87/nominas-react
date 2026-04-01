@@ -3,6 +3,7 @@ from extractor import (
     get_normalized_subcategory_rules,
     money_to_float,
     parse_period_from_text,
+    split_irpf_embedded_pct_rows,
 )
 
 
@@ -50,3 +51,44 @@ def test_classify_negative_devengo_as_devengo() -> None:
     assert categoria == "Devengo"
     assert subcategoria == "Beneficio en Especie"
     assert importe == -10.0
+
+
+def test_split_irpf_embedded_pct_creates_two_rows() -> None:
+    rows = [
+        {
+            "Año": 2025, "Mes": 12,
+            "Concepto": "TRIBUTACION I.R.P.F.33,17",
+            "Importe": -1779.24,
+            "Categoría": "Devengo",
+            "Subcategoría": "Impuestos (IRPF)",
+        }
+    ]
+    result = split_irpf_embedded_pct_rows(rows)
+    assert len(result) == 2
+
+    deduction = next(r for r in result if r["Concepto"] == "Tributación I.R.P.F.")
+    pct_row = next(r for r in result if r["Concepto"] == "% IRPF")
+
+    assert deduction["Importe"] == -1779.24
+    assert deduction["Categoría"] == "Devengo"
+
+    assert pct_row["Importe"] == 33.17
+    assert pct_row["Categoría"] == "Impuesto IRPF"
+    assert pct_row["Subcategoría"] == "Porcentaje"
+    assert pct_row["Año"] == 2025
+    assert pct_row["Mes"] == 12
+
+
+def test_split_irpf_plain_concept_unchanged() -> None:
+    rows = [
+        {
+            "Año": 2025, "Mes": 12,
+            "Concepto": "TRIBUTACION I.R.P.F.",
+            "Importe": -1779.24,
+            "Categoría": "Devengo",
+            "Subcategoría": "Impuestos (IRPF)",
+        }
+    ]
+    result = split_irpf_embedded_pct_rows(rows)
+    assert len(result) == 1
+    assert result[0]["Concepto"] == "TRIBUTACION I.R.P.F."

@@ -9,13 +9,13 @@ Para la documentación completa del sistema consulta el [README raíz](../README
 
 | Archivo | Función |
 |---|---|
-| `extractor.py` | Extrae texto/tablas del PDF, detecta período, clasifica líneas y construye filas |
+| `extractor.py` | Extrae texto/tablas del PDF, detecta período, clasifica líneas y construye filas. Divide automáticamente conceptos con IRPF embebido (e.g. `TRIBUTACION I.R.P.F.33,17`) en una fila de importe y una fila `% IRPF` separada. |
 | `drive_ingestor.py` | Orquesta Drive → extracción → Supabase; renombra y mueve PDFs |
-| `kpi_builder.py` | Calcula métricas mensuales, anuales y comparativas YoY |
-| `sheets_client.py` | Cliente Google Sheets (migración histórica) |
 | `subcategorias.json` | Catálogo editable concepto → subcategoría |
 | `nominas_app/services/supabase_client.py` | Cliente REST Supabase (select, insert, paginación) |
 | `nominas_app/services/config_loader.py` | Carga `config.json` o secrets de entorno |
+
+> Los KPIs **no se calculan en Python**. El pipeline inserta filas en la tabla `nominas` y Supabase se encarga de agregar todo a través de `payroll_metrics_mv`. `kpi_builder.py` y las herramientas de migración desde Google Sheets (`migrate_sheets_to_supabase.py`, `sheets_client.py`) ya no forman parte del proyecto.
 
 ---
 
