@@ -32,7 +32,6 @@ const StatCard = ({
         </div>
         {typeof trend === 'number' && (
           <span
-            title={`Variacion: ${Math.abs(trend)}%`}
             className={`flex items-center text-xs font-bold px-2 py-1 rounded-full ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}
           >
             {trend > 0 ? <TrendingUp size={12} className="mr-1" /> : <TrendingDown size={12} className="mr-1" />}
@@ -43,16 +42,27 @@ const StatCard = ({
       <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1 flex items-center gap-1.5">
         <span>{title}</span>
         {helpText && (
-          <span title={helpText} className="text-slate-400 hover:text-slate-600 cursor-help">
-            <Info size={13} />
+          <span className="relative group inline-flex">
+            <Info size={13} className="text-slate-400 group-hover:text-slate-600 cursor-help transition-colors" />
+            <span className="
+              pointer-events-none absolute left-1/2 bottom-full mb-2 z-20
+              w-56 -translate-x-1/2
+              rounded-xl bg-slate-800 dark:bg-slate-700 px-3 py-2
+              text-xs font-normal text-white leading-relaxed shadow-xl
+              opacity-0 group-hover:opacity-100
+              transition-opacity duration-150
+            ">
+              {helpText}
+              <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700" />
+            </span>
           </span>
         )}
       </h3>
       <div className="flex flex-col">
-        <span className="text-2xl font-bold text-slate-800 dark:text-white" title={String(value)}>
+        <span className="text-2xl font-bold text-slate-800 dark:text-white">
           {isPrivate ? '••••••' : value}
         </span>
-        {subValue && <span className="text-xs text-slate-400 mt-1" title={String(subValue)}>{subValue}</span>}
+        {subValue && <span className="text-xs text-slate-400 mt-1">{subValue}</span>}
       </div>
     </div>
   );
