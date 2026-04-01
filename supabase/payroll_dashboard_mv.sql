@@ -1,12 +1,13 @@
--- MATERIALIZED VIEW REAL for current schema: public.nominas
+-- Regular VIEW for current schema: public.nominas
 -- Columns expected in nominas:
 -- id, año, mes, concepto, importe, categoría, subcategoría, file_id, file_name, created_at
 --
--- This view centralizes business formulas so UI only renders.
+-- This view centralizes business formulas so the UI only renders.
+-- Being a regular view it always reflects the latest data without manual refresh.
 
-drop materialized view if exists public.payroll_metrics_mv;
+drop view if exists public.payroll_metrics_mv;
 
-create materialized view public.payroll_metrics_mv as
+create view public.payroll_metrics_mv as
 with base as (
   select
     n."año"::int as year,
@@ -167,10 +168,4 @@ select
   now() as updated_at
 from annual_by_year;
 
-create unique index if not exists payroll_metrics_mv_singleton_idx
-  on public.payroll_metrics_mv ((1));
-
 grant select on public.payroll_metrics_mv to authenticated;
-
--- Refresh after updating nominas:
--- refresh materialized view public.payroll_metrics_mv;

@@ -90,11 +90,7 @@ nominas-react/
 -- (pega el contenido de supabase/payroll_dashboard_mv.sql)
 ```
 
-Tras cada ingesta puedes refrescar la vista manualmente si es materializada:
-
-```sql
-REFRESH MATERIALIZED VIEW public.payroll_metrics_mv;
-```
+> `payroll_metrics_mv` es una vista regular: recalcula automáticamente en cada consulta, sin necesidad de refresh manual.
 
 **Configurar URLs de autenticación** en Supabase → Authentication → URL Configuration:
 

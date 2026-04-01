@@ -7,7 +7,7 @@ import { hasSupabaseConfig, supabase } from './supabaseClient';
  * @param {object} row.annual_by_year - Map of year → annual metrics.
  * @param {Array}  [row.tax_brackets] - Pre-computed IRPF bracket data.
  * @param {Array}  [row.vesting_schedule] - Upcoming RSU/ESPP vesting events.
- * @param {string} [row.updated_at] - ISO timestamp of the last MV refresh.
+ * @param {string} [row.updated_at] - Timestamp of the query (view recalculates on every read).
  * @returns {{ annualByYear: object, taxBrackets: Array, vestingSchedule: Array, updatedAt: string|null }}
  */
 export const normalizePayrollMetricsPayload = (row) => {
@@ -23,13 +23,13 @@ export const normalizePayrollMetricsPayload = (row) => {
 };
 
 /**
- * Fetches payroll metrics from the `payroll_metrics_mv` materialized view.
+ * Fetches payroll metrics from the `payroll_metrics_mv` view.
  *
  * Requires an authenticated Supabase session — Row Level Security on the view
  * ensures each user only reads their own data.
  *
  * @throws {Error} If env vars are missing, the user is not authenticated, or
- *                 the materialized view is empty (needs a manual refresh).
+ *                 the view returns no data (nominas table is empty).
  * @returns {Promise<ReturnType<typeof normalizePayrollMetricsPayload>>}
  */
 export const fetchPayrollDataFromSupabase = async () => {
@@ -51,7 +51,7 @@ export const fetchPayrollDataFromSupabase = async () => {
     .maybeSingle();
   if (error) throw error;
   if (!data) {
-    throw new Error('No rows found in payroll_metrics_mv. Refresh the materialized view.');
+    throw new Error('No rows found in payroll_metrics_mv. La tabla nominas puede estar vacía.');
   }
   return normalizePayrollMetricsPayload(data);
 };

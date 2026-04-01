@@ -22,5 +22,5 @@ Tareas pendientes ordenadas por prioridad. Marcar con `[x]` cuando estén comple
 
 ## Base de datos
 
-- [ ] **Convertir `payroll_metrics_mv` de vista materializada a vista regular**
+- [x] **Convertir `payroll_metrics_mv` de vista materializada a vista regular**
   La vista materializada requiere un `REFRESH` manual o programado tras cada ingesta. Una vista regular (`CREATE VIEW`) recalcula en tiempo real y simplifica el pipeline al eliminar el paso de refresco. Evaluar el impacto en rendimiento antes de migrar (el volumen de datos es bajo, la vista regular debería ser suficiente).
