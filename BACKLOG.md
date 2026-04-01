@@ -14,11 +14,22 @@ Tareas pendientes ordenadas por prioridad. Marcar con `[x]` cuando estén comple
 
 ## Frontend
 
-- [ ] **Corregir los porcentajes de crecimiento/decrecimiento en las tarjetas**
+- [x] **Corregir los porcentajes de crecimiento/decrecimiento en las tarjetas**
   Los valores de tendencia (flecha arriba/abajo en las StatCard) no están siendo calculados correctamente. Revisar `utils/trends.js` y cómo se pasan los datos a cada tarjeta para asegurarse de que el YoY refleja el campo correcto y el año anterior existe en los datos.
 
 - [ ] **Añadir vista histórica (agregado de todos los años)**
   Actualmente el selector de año filtra a un único ejercicio. Añadir una opción "Todos los años" que muestre métricas acumuladas o promediadas, y que el gráfico de evolución muestre el histórico completo sin filtro de año.
+
+## Acciones e Inversiones
+
+- [ ] **Sincronizar datos de cartera desde la hoja de Google de Iñaki**
+  El script de Iñaki deposita datos de RSU y ESPP en una hoja de Google Sheets. Crear un proceso de ingesta que lea esa hoja (Google Sheets API) y almacene los datos en Supabase. La tabla debería registrar tipo de acción (RSU/ESPP), cantidad, fecha de adquisición/liberación, precio de compra y valor actual. Con esto la app podría mostrar el número de acciones en cartera, su valor total y la rentabilidad acumulada.
+
+- [ ] **Leer documentos de calendario de liberación de RSU**
+  Procesar los documentos de vesting schedule (PDFs o similares) para extraer automáticamente las fechas y cantidades de cada liberación futura de RSU. Los datos deberían guardarse en Supabase y la app debería mostrar una línea de tiempo con los próximos eventos de vesting.
+
+- [ ] **Permitir precio manual de CRM cuando la API no está disponible**
+  Si la petición al API de Yahoo Finance falla (o devuelve error), mostrar al usuario un campo para introducir manualmente el precio de la acción de Salesforce (CRM) y calcular con ese valor hasta que el precio automático vuelva a estar disponible. El valor introducido debería persistir en `localStorage` para no pedirlo en cada visita.
 
 ## Base de datos
 

@@ -417,7 +417,7 @@ const App = () => {
                 icon={Wallet}
                 color="blue"
                 isPrivate={isPrivacyMode}
-                trend={trend('neto')}
+                trend={trend('neto', 'monthly')}
                 trendYear={previousYear}
               />
               <StatCard

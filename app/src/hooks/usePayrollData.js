@@ -94,11 +94,12 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     const estimatedTaxableBase = Math.max(annual.bruto - annual.totalSS - annual.deferredAmount, 0);
     const irpf = calculateIrpfBreakdownMadrid(estimatedTaxableBase);
 
-    const trend = (field) =>
+    const trend = (field, section = 'annual') =>
       calcTrend({
         selectedYear: year,
         annualByYear: effectiveDataset.annualByYear,
         field,
+        section,
       });
 
     return {
