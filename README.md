@@ -157,9 +157,14 @@ pip install -r requirements.txt
 
 #### 2. Credenciales Google Drive
 
-1. Crea un Service Account en Google Cloud con la **Google Drive API** habilitada
-2. Descarga el JSON de credenciales como `pipeline/credentials.json`
-3. Comparte la carpeta de Drive con el email del Service Account (rol Editor)
+1. Ve a [console.cloud.google.com](https://console.cloud.google.com) y selecciona tu proyecto
+2. **APIs y servicios → Biblioteca** → busca **Google Drive API** → Habilitar
+3. **APIs y servicios → Credenciales → Crear credenciales → Cuenta de servicio**
+   - Asígnale un nombre (p.ej. `nominas-ingesta`) y termina el asistente
+4. Haz clic en la cuenta de servicio creada → **Claves → Añadir clave → Crear clave nueva → JSON**
+   - Se descarga un fichero JSON — guárdalo como `pipeline/credentials.json`
+5. Copia el **email** de la cuenta de servicio (termina en `@<proyecto>.iam.gserviceaccount.com`)
+6. En Google Drive, abre la carpeta de nóminas → **Compartir** → pega ese email → rol **Editor**
 
 #### 3. Fichero de configuración
 
@@ -234,13 +239,15 @@ El workflow `ingesta_nominas.yml` se ejecuta:
 
 **Secrets necesarios en GitHub** (Settings → Secrets and variables → Actions):
 
-| Secret | Valor |
-|---|---|
-| `GOOGLE_CREDENTIALS_JSON` | Contenido JSON completo del Service Account |
-| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive con los PDFs |
-| `SUPABASE_URL` | URL del proyecto Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key (no la anon key) |
-| `SUPABASE_SCHEMA` | `public` (o el esquema que uses) |
+| Secret | Valor | Dónde encontrarlo |
+|---|---|---|
+| `GOOGLE_CREDENTIALS_JSON` | Contenido completo del JSON del Service Account | Fichero descargado en el paso anterior (pega el texto completo, no el nombre) |
+| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive | URL de la carpeta: `drive.google.com/drive/folders/<ID>` |
+| `VITE_SUPABASE_URL` | URL del proyecto Supabase | Supabase → Settings → API → Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key | Supabase → Settings → API → `service_role` (distinta de la `anon`) |
+| `SUPABASE_SCHEMA` | `public` | Dejar en `public` salvo que uses otro esquema |
+
+> El pipeline Python reutiliza el secret `VITE_SUPABASE_URL` — el prefijo `VITE_` lo exige Vite para exponer variables al navegador, pero el nombre del secret en GitHub es solo un nombre y puede usarse desde cualquier workflow.
 
 ---
 
