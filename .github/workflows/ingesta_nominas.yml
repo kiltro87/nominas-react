@@ -87,7 +87,7 @@ jobs:
               "drive_folder_id": os.environ["DRIVE_FOLDER_ID"],
               "supabase_url": os.environ["SUPABASE_URL"],
               "supabase_service_role_key": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-              "supabase_schema": os.environ.get("SUPABASE_SCHEMA", "public"),
+              "supabase_schema": os.environ.get("SUPABASE_SCHEMA") or "public",
           }
           with open("config.json", "w", encoding="utf-8") as f:
               json.dump(cfg, f, ensure_ascii=False, indent=2)
