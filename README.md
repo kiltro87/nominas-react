@@ -1,48 +1,28 @@
 # Payroll Intelligence
 
-Dashboard personal para analizar nóminas de Salesforce España: IRPF, retenciones, ESPP, RSU, plan de pensiones y evolución mensual.
+Dashboard personal para analizar nóminas de Salesforce España: salario bruto/neto, IRPF, retenciones, ESPP, RSU y plan de pensiones.
 
-**URL de producción:** https://kiltro87.github.io/nominas-react/
-
----
-
-## Tabla de contenidos
-
-1. [Arquitectura](#arquitectura)
-2. [Estructura del repositorio](#estructura-del-repositorio)
-3. [Configuración de Supabase](#configuración-de-supabase)
-4. [Pipeline Python (ingesta)](#pipeline-python-ingesta)
-5. [App React (frontend)](#app-react-frontend)
-6. [Despliegue en GitHub Pages](#despliegue-en-github-pages)
-7. [Gestión de usuarios](#gestión-de-usuarios)
+**Producción:** https://kiltro87.github.io/nominas-react/
 
 ---
 
-## Arquitectura
+## Cómo funciona
 
 ```
-Google Drive
-└── PDFs de nóminas
+Google Drive (PDFs de nóminas)
         │
-        ▼  (GitHub Actions — ingesta_nominas.yml)
-pipeline/drive_ingestor.py
-        │  extrae, clasifica e inserta filas
-        ▼
+        ▼  pipeline/drive_ingestor.py  (GitHub Actions · 1 vez/mes)
 Supabase PostgreSQL
-├── tabla: nominas
-├── tabla: control  (deduplicación y auditoría)
-└── view:  payroll_metrics_mv  (agrega KPIs para la app)
+├── nominas      — una fila por concepto de nómina
+├── control      — registro de qué PDFs se han procesado
+└── payroll_metrics_mv — vista que agrega KPIs para la app
         │
-        ▼  (GitHub Actions — deploy.yml)
-app/  React + Vite
-        │  lee solo la MV, nunca escribe
-        ▼
-GitHub Pages  →  https://kiltro87.github.io/nominas-react/
+        ▼  app/  React + Vite  (GitHub Actions · en cada push)
+GitHub Pages → https://kiltro87.github.io/nominas-react/
 ```
 
-Cada parte se despliega de forma independiente:
-- Cambios en `pipeline/**` activan solo el workflow de ingesta.
-- Cambios en `app/**` activan solo el workflow de deploy de la React app.
+- Los cambios en `pipeline/**` solo ejecutan el workflow de ingesta.
+- Los cambios en `app/**` solo ejecutan el workflow de deploy.
 
 ---
 
@@ -50,90 +30,73 @@ Cada parte se despliega de forma independiente:
 
 ```
 nominas-react/
-├── app/                          ← React frontend (Vite + Tailwind)
-│   ├── public/
-│   │   └── 404.html              ← Redirección SPA para GitHub Pages
+├── app/                          ← Frontend React (Vite + Tailwind)
 │   ├── src/
 │   │   ├── components/           ← ProgressBar, StatCard
-│   │   ├── data/payrollData.js   ← Dataset mock (fallback sin Supabase)
+│   │   ├── data/payrollData.js   ← Mock con datos de demo
 │   │   ├── hooks/
-│   │   │   ├── usePayrollData.js     ← Carga Supabase vs mock
+│   │   │   ├── usePayrollData.js     ← Carga datos (Supabase o mock)
 │   │   │   ├── useStockPrice.js      ← Precio CRM en tiempo real
-│   │   │   └── useSupabaseAuth.js    ← Auth: login, magic link, reset password
+│   │   │   └── useSupabaseAuth.js    ← Autenticación
 │   │   ├── services/
 │   │   │   ├── payrollRepository.js  ← Consulta payroll_metrics_mv
-│   │   │   └── supabaseClient.js     ← Singleton Supabase JS
+│   │   │   └── supabaseClient.js     ← Cliente Supabase JS
 │   │   ├── utils/
 │   │   │   ├── format.js         ← formatCurrency, formatPercent
 │   │   │   ├── irpf.js           ← Tramos IRPF Madrid 2024
-│   │   │   └── trends.js         ← Comparativa año anterior
-│   │   └── App.jsx               ← Componente raíz + todas las vistas
+│   │   │   └── trends.js         ← Variación interanual
+│   │   └── App.jsx               ← Componente raíz
+│   ├── public/404.html           ← Redirección SPA para GitHub Pages
 │   ├── .env.example
-│   ├── vite.config.js
-│   └── package.json
+│   └── vite.config.js
 │
-├── pipeline/                     ← Python: ingesta Drive → Supabase
-│   ├── extractor.py              ← Extrae texto/tablas del PDF, clasifica y divide conceptos
+├── pipeline/                     ← Ingesta Python: Drive → Supabase
+│   ├── extractor.py              ← Extrae y clasifica conceptos del PDF
 │   ├── drive_ingestor.py         ← Orquesta Drive → extracción → Supabase
-│   ├── subcategorias.json        ← Catálogo concepto → subcategoría (editable)
+│   ├── subcategorias.json        ← Catálogo editable de conceptos
 │   ├── requirements.txt
-│   ├── runtime.txt
-│   ├── nominas_app/
-│   │   └── services/
-│   │       ├── supabase_client.py    ← Cliente REST Supabase (Python)
-│   │       └── config_loader.py     ← Carga config/secrets
 │   └── tests/
-│       ├── test_extractor_core.py
-│       └── test_drive_ingestor.py
 │
-├── supabase/                     ← SQL completo del esquema
-│   ├── schema.sql                ← Tablas nominas + control + índices
-│   └── payroll_dashboard_mv.sql  ← Materialized view de KPIs
+├── supabase/
+│   ├── schema.sql                ← Tablas nominas + control
+│   └── payroll_dashboard_mv.sql  ← Vista de KPIs
 │
-├── .github/
-│   └── workflows/
-│       ├── deploy.yml            ← Build + deploy React (se activa con cambios en app/)
-│       └── ingesta_nominas.yml   ← Tests + ingesta Python (se activa con cambios en pipeline/)
-│
-└── README.md
+└── .github/workflows/
+    ├── deploy.yml                ← Build y deploy de la app
+    └── ingesta_nominas.yml       ← Tests y ejecución del pipeline
 ```
 
 ---
 
-## Configuración de Supabase
+## Configuración inicial (una sola vez)
 
-### 1. Crear el proyecto
+### 1. Supabase
+
+**Crear el proyecto:**
 
 1. Crea un proyecto en https://supabase.com/dashboard
-2. Anota el **Project URL** y:
+2. Guarda:
+   - **Project URL** → `https://<ref>.supabase.co`
    - **anon public key** → para la app React
-   - **service role key** → para el pipeline Python (nunca exponer en el frontend)
+   - **service role key** → para el pipeline Python (nunca exponerla en el frontend)
 
-### 2. Ejecutar el esquema SQL
-
-En el SQL Editor de Supabase, ejecuta en orden:
+**Ejecutar el esquema SQL** en Supabase → SQL Editor:
 
 ```sql
--- 1. Tablas base
--- Contenido de supabase/schema.sql
+-- Paso 1: crea las tablas
+-- (pega el contenido de supabase/schema.sql)
+
+-- Paso 2: crea la vista de KPIs
+-- (pega el contenido de supabase/payroll_dashboard_mv.sql)
 ```
 
-```sql
--- 2. Materialized view de KPIs
--- Contenido de supabase/payroll_dashboard_mv.sql
-```
-
-Para refrescar la MV manualmente tras insertar datos:
+Tras cada ingesta puedes refrescar la vista manualmente si es materializada:
 
 ```sql
 REFRESH MATERIALIZED VIEW public.payroll_metrics_mv;
 ```
 
-> El pipeline Python refresca la MV automáticamente tras cada ingesta.
-
-### 3. Configurar URLs de autenticación
-
-En **Authentication → URL Configuration**:
+**Configurar URLs de autenticación** en Supabase → Authentication → URL Configuration:
 
 | Campo | Valor |
 |---|---|
@@ -144,18 +107,7 @@ Para desarrollo local añade también `http://localhost:5173/**`.
 
 ---
 
-## Pipeline Python (ingesta)
-
-### Configuración local
-
-#### 1. Instalar dependencias
-
-```bash
-cd pipeline
-pip install -r requirements.txt
-```
-
-#### 2. Credenciales Google Drive
+### 2. Google Drive (para el pipeline de ingesta)
 
 1. Ve a [console.cloud.google.com](https://console.cloud.google.com) y selecciona tu proyecto
 2. **APIs y servicios → Biblioteca** → busca **Google Drive API** → Habilitar
@@ -163,155 +115,146 @@ pip install -r requirements.txt
    - Asígnale un nombre (p.ej. `nominas-ingesta`) y termina el asistente
 4. Haz clic en la cuenta de servicio creada → **Claves → Añadir clave → Crear clave nueva → JSON**
    - Se descarga un fichero JSON — guárdalo como `pipeline/credentials.json`
-5. Copia el **email** de la cuenta de servicio (termina en `@<proyecto>.iam.gserviceaccount.com`)
-6. En Google Drive, abre la carpeta de nóminas → **Compartir** → pega ese email → rol **Editor**
+5. En Google Drive, abre la carpeta de nóminas → **Compartir** → pega el email de la cuenta de servicio (termina en `@<proyecto>.iam.gserviceaccount.com`) → rol **Editor**
 
-#### 3. Fichero de configuración
+---
 
-Crea `pipeline/config.json` (no subir al repo):
+### 3. Secrets de GitHub
+
+Ve a **Settings → Secrets and variables → Actions** y añade:
+
+| Secret | Valor | Dónde encontrarlo |
+|---|---|---|
+| `VITE_SUPABASE_URL` | URL del proyecto | Supabase → Settings → API → Project URL |
+| `VITE_SUPABASE_ANON_KEY` | Clave pública | Supabase → Settings → API → `anon public` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave privada del servidor | Supabase → Settings → API → `service_role` |
+| `GOOGLE_CREDENTIALS_JSON` | Contenido completo del JSON | Fichero descargado en el paso anterior (pega el texto, no el nombre) |
+| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive | URL de la carpeta: `drive.google.com/drive/folders/<ID>` |
+
+> `VITE_SUPABASE_URL` lo usan tanto la app React como el pipeline Python (evita duplicar el secret).
+
+---
+
+### 4. Activar GitHub Pages
+
+En **Settings → Pages**:
+- Source: **Deploy from a branch**
+- Branch: `gh-pages` / `/ (root)`
+
+El primer push a `main` que toque `app/**` desplegará la app automáticamente.
+
+---
+
+## Desarrollo local
+
+### App React
+
+```bash
+cd app
+npm install
+cp .env.example .env   # añade VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+npm run dev            # http://localhost:5173
+```
+
+Sin credenciales la app arranca en **modo mock** con datos de demo.
+
+**Scripts disponibles:**
+
+```bash
+npm run dev       # servidor de desarrollo
+npm run build     # build de producción
+npm run check     # lint + tests + build (igual que CI)
+npm test          # tests en modo watch
+npm run lint      # solo ESLint
+```
+
+### Pipeline Python
+
+```bash
+cd pipeline
+pip install -r requirements.txt
+```
+
+Crea `pipeline/config.json` (no subir al repo, está en `.gitignore`):
 
 ```json
 {
   "credentials_path": "credentials.json",
   "drive_folder_id": "ID_DE_TU_CARPETA_DRIVE",
-  "supabase_url": "https://<project-ref>.supabase.co",
+  "supabase_url": "https://<ref>.supabase.co",
   "supabase_service_role_key": "<service_role_key>",
   "supabase_schema": "public"
 }
 ```
 
-#### 4. Ejecutar ingesta
+Ejecutar ingesta:
 
 ```bash
-cd pipeline
 python drive_ingestor.py --config config.json
 
 # Limitar a N PDFs para pruebas:
 python drive_ingestor.py --config config.json --limit 5
 ```
 
-#### 5. Ejecutar tests
+Ejecutar tests:
 
 ```bash
-cd pipeline
 python -m pytest -q
 ```
 
-> **Nunca subas al repo** `credentials.json` ni `config.json` — están en `.gitignore`.
+---
 
-### Comportamiento de la ingesta
+## Cómo funciona la ingesta
 
 **Qué escribe en Supabase:**
-- Tabla `nominas` — año, mes, concepto, importe, categoría, subcategoría, file_id, file_name
-- Tabla `control` — registro de cada PDF procesado con estado, md5, ruta en Drive y versión de reglas
+- `nominas` — año, mes, concepto, importe, categoría, subcategoría
+- `control` — registro de cada PDF (file_id, md5, estado, fecha)
 
 **Deduplicación:**
-- Por `file_id` — el mismo archivo no se reprocesa aunque se vuelva a ejecutar la ingesta
-- Por `md5_drive` — si se sube el mismo PDF con otro nombre, se detecta y se omite por contenido
+- Por `file_id` — el mismo archivo no se reprocesa aunque se lance la ingesta varias veces
+- Por `md5_drive` — si se sube el mismo PDF con otro nombre, se detecta y se omite
 
 **Organización automática en Drive:**
-Cada PDF procesado se renombra a `Nómina <Mes> <Año>.pdf` y se mueve a una subcarpeta anual (`/2025`, `/2026`…). Si la subcarpeta no existe, se crea.
+Cada PDF procesado se renombra a `Nómina <Mes> <Año>.pdf` y se mueve a una subcarpeta anual (`/2025`, `/2026`…).
 
 **Procesado incremental:**
-La ingesta solo busca archivos modificados desde la última ejecución registrada en `control`, con un margen de seguridad.
+Solo busca archivos modificados desde la última ejecución registrada en `control`.
 
-### Clasificación de conceptos
+**Clasificación de conceptos:**
+`subcategorias.json` mapea cada concepto de nómina a una subcategoría. Si un concepto nuevo no aparece en el catálogo, se guarda con subcategoría `"No clasificado"` para revisión manual.
 
-`subcategorias.json` es el catálogo editable que mapea cada concepto de nómina a una subcategoría. Si añades un concepto nuevo o cambia el nombre en el PDF, edítalo aquí.
-
-### Cómo reprocesar un PDF concreto
-
-Si necesitas volver a procesar un archivo ya ingestado:
+**Reprocesar un PDF concreto:**
 
 ```sql
--- En el SQL Editor de Supabase
+-- En Supabase → SQL Editor
 DELETE FROM public.control WHERE file_id = '<id_del_archivo>';
 ```
 
-Luego ejecuta la ingesta de nuevo. El `file_id` de cada archivo está visible en la pestaña `control` de Supabase.
+Luego ejecuta la ingesta de nuevo.
 
-### Automatización con GitHub Actions
+---
+
+## Automatización
 
 El workflow `ingesta_nominas.yml` se ejecuta:
 - El **día 1 de cada mes** a las 08:00 UTC
-- **Manualmente** desde Actions → Run workflow (con `limit` opcional)
-- En cada push a `main` que toque archivos de `pipeline/`
+- **Manualmente** desde Actions → `Ingesta Nominas Drive to Supabase` → Run workflow
+- En cada push a `main` con cambios en `pipeline/**`
 
-**Secrets necesarios en GitHub** (Settings → Secrets and variables → Actions):
-
-| Secret | Valor | Dónde encontrarlo |
-|---|---|---|
-| `GOOGLE_CREDENTIALS_JSON` | Contenido completo del JSON del Service Account | Fichero descargado en el paso anterior (pega el texto completo, no el nombre) |
-| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive | URL de la carpeta: `drive.google.com/drive/folders/<ID>` |
-| `VITE_SUPABASE_URL` | URL del proyecto Supabase | Supabase → Settings → API → Project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key | Supabase → Settings → API → `service_role` (distinta de la `anon`) |
-| `SUPABASE_SCHEMA` | `public` | Dejar en `public` salvo que uses otro esquema |
-
-> El pipeline Python reutiliza el secret `VITE_SUPABASE_URL` — el prefijo `VITE_` lo exige Vite para exponer variables al navegador, pero el nombre del secret en GitHub es solo un nombre y puede usarse desde cualquier workflow.
-
----
-
-## App React (frontend)
-
-### Desarrollo local
-
-```bash
-cd app
-npm install
-cp .env.example .env   # rellenar con tus credenciales Supabase
-npm run dev            # http://localhost:5173
-```
-
-> Sin credenciales la app arranca en modo **mock** con datos de demostración.
-
-### Scripts disponibles
-
-```bash
-npm run dev       # servidor de desarrollo
-npm run check     # lint + tests + build (igual que CI)
-npm test          # tests en modo watch
-npm run lint      # solo ESLint
-npm run build     # build de producción en app/dist/
-```
-
----
-
-## Despliegue en GitHub Pages
-
-El despliegue es **automático** en cada push a `main` que modifique archivos de `app/`.
-
-### Configuración inicial (una sola vez)
-
-**1. Secrets en GitHub** (Settings → Secrets and variables → Actions):
-
-| Secret | Valor |
-|---|---|
-| `VITE_SUPABASE_URL` | URL de tu proyecto Supabase |
-| `VITE_SUPABASE_ANON_KEY` | Clave **anon/pública** de Supabase |
-
-**2. Activar GitHub Pages** (Settings → Pages):
-- Source: **Deploy from a branch**
-- Branch: `gh-pages` / `/ (root)`
-
-Tras el primer push la app estará en `https://kiltro87.github.io/nominas-react/`.
+El workflow `deploy.yml` se ejecuta en cada push a `main` con cambios en `app/**`.
 
 ---
 
 ## Gestión de usuarios
 
-### Crear un usuario
+**Crear usuario:** Supabase → Authentication → Users → Add user.
 
-En **Supabase Dashboard → Authentication → Users → Add user**.
-
-### Establecer o cambiar contraseña
-
-Desde la pantalla de login de la app:
-
+**Establecer o cambiar contraseña** desde la pantalla de login:
 1. Haz clic en **"¿No tienes contraseña o la olvidaste?"**
 2. Introduce tu email → recibes un enlace
 3. Al hacer clic en el enlace la app muestra el formulario de nueva contraseña
 
-### Métodos de acceso
+**Métodos de acceso:**
 
 | Método | Cuándo usarlo |
 |---|---|

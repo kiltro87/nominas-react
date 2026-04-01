@@ -140,7 +140,3 @@ export const calculateIrpfBreakdownMadrid = (baseLiquidableGeneral) => {
   };
 };
 
-export const IRPF_SCALES_REFERENCE = {
-  state: STATE_SCALE_2024,
-  madrid: MADRID_AUTONOMIC_SCALE_2024,
-};

@@ -64,8 +64,8 @@ const App = () => {
   const rentabilidadDiferida =
     totalEquityUnits > 0 && crmPrice ? Number((((capitalAcciones - totalEquityUnits) / totalEquityUnits) * 100).toFixed(2)) : null;
   const pensionTotal = (annual.pensionCompanyTotal ?? 0) + (annual.pensionEmployeeTotal ?? 0);
-  const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 66.6;
-  const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 33.3;
+  const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
+  const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
 
   const clearLoginMessages = () => {
     setLoginError('');
@@ -540,9 +540,12 @@ const App = () => {
                 <div className="mt-12 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl flex items-start gap-3">
                   <Info className="text-blue-500 shrink-0" size={20} />
                   <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
-                    <strong>Analisis de Eficiencia:</strong> Tu tasa de ahorro efectiva es del 14.5%.
-                    Optimizando retribucion flexible en especie puedes reducir tu base imponible en
-                    <span className="font-bold underline decoration-dotted"> 1.200 EUR anuales</span>.
+                    <strong>Analisis de Eficiencia:</strong> Tu tasa de ahorro efectiva es del{' '}
+                    <span className="font-bold">
+                      {annual.bruto > 0 ? formatPercent((annual.ahorroTotal / annual.bruto) * 100) : '—'}
+                    </span>.
+                    El ahorro diferido ({formatCurrency(annual.deferredAmount ?? 0)}) reduce tu base imponible aplicando un tipo marginal del{' '}
+                    <span className="font-bold">{formatPercent(irpf.tipoMarginal)}</span>.
                   </p>
                 </div>
               </div>
@@ -587,9 +590,7 @@ const App = () => {
                     <p className="text-blue-100 text-xs mb-4 leading-relaxed">
                       Calcula cuanto recibiras neto de tu variable anual tras impuestos.
                     </p>
-                    <button className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 w-full py-2.5 rounded-xl text-sm font-bold transition-all">
-                      Empezar Simulacion
-                    </button>
+                    <p className="text-blue-200/60 text-xs italic">Proximamente</p>
                   </div>
                   <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                 </div>

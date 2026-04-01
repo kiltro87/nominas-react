@@ -46,7 +46,7 @@ export const fetchPayrollDataFromSupabase = async () => {
 
   const { data, error } = await supabase
     .from('payroll_metrics_mv')
-    .select('annual_by_year,tax_brackets,vesting_schedule')
+    .select('annual_by_year,tax_brackets,vesting_schedule,updated_at')
     .limit(1)
     .maybeSingle();
   if (error) throw error;
