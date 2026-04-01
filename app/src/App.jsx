@@ -63,10 +63,6 @@ const App = () => {
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
   const esppYtd = annual.esppYtd ?? 0;
   const rsuYtd = annual.rsuYtd ?? 0;
-  const totalEquityUnits = esppYtd + rsuYtd;
-  const capitalAcciones = crmPrice ? totalEquityUnits * crmPrice : 0;
-  const rentabilidadDiferida =
-    totalEquityUnits > 0 && crmPrice ? Number((((capitalAcciones - totalEquityUnits) / totalEquityUnits) * 100).toFixed(2)) : null;
   const pensionTotal = (annual.pensionCompanyTotal ?? 0) + (annual.pensionEmployeeTotal ?? 0);
   const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
   const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
