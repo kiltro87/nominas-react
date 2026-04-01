@@ -4,7 +4,35 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>app</title>
+    <title>Nominas</title>
+    <script>
+      // Receives the redirect from 404.html and restores the original URL
+      // so the React router sees the correct path instead of /?p=/...
+      (function () {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        var search = location.search;
+        if (search) {
+          var p = new URLSearchParams(search);
+          var path = p.get('p');
+          if (path) {
+            var query = p.get('q') ? '?' + p.get('q').replace(/~and~/g, '&') : '';
+            history.replaceState(
+              null,
+              null,
+              location.pathname.split('/').slice(0, 2).join('/') +
+                '/' +
+                path.replace(/~and~/g, '&') +
+                query +
+                location.hash
+            );
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
