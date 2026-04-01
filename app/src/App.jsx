@@ -56,6 +56,7 @@ const App = () => {
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
 
+  const previousYear = String(Number(year) - 1);
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
   const esppYtd = annual.esppYtd ?? 0;
   const rsuYtd = annual.rsuYtd ?? 0;
@@ -417,11 +418,13 @@ const App = () => {
                 color="blue"
                 isPrivate={isPrivacyMode}
                 trend={trend('neto')}
+                trendYear={previousYear}
               />
               <StatCard
                 title="Eficiencia Fiscal (IRPF)"
                 value={formatPercent(annual.irpfAvgPct)}
-                trend={trend('irpfEfectivo')}
+                trend={trend('irpfAvgPct')}
+                trendYear={previousYear}
                 inverseTrend
                 subValue="Media mensual del % IRPF"
                 helpText="Promedio de los conceptos de porcentaje IRPF detectados en las nóminas del año."
@@ -432,6 +435,7 @@ const App = () => {
                 title="Ahorro y Capital"
                 value={formatCurrency(annual.ahorroTotal)}
                 trend={trend('ahorroTotal')}
+                trendYear={previousYear}
                 subValue="Incluye ESPP, RSU y Jubilacion"
                 helpText="Suma del ahorro diferido: pensiones, ESPP neto, RSU y conceptos diferidos."
                 icon={PiggyBank}
@@ -442,6 +446,7 @@ const App = () => {
                 title="Salario Bruto YTD"
                 value={formatCurrency(annual.bruto)}
                 trend={trend('bruto')}
+                trendYear={previousYear}
                 subValue="Suma de salarios brutos del año"
                 helpText="Suma de los importes positivos clasificados como ingresos en el año."
                 icon={Briefcase}
@@ -611,12 +616,14 @@ const App = () => {
                 color="rose"
                 isPrivate={isPrivacyMode}
                 trend={trend('totalImpuestos')}
+                trendYear={previousYear}
                 inverseTrend
               />
               <StatCard
                 title="Tipo Efectivo vs Marginal"
                 value={formatPercent(annual.irpfEfectivo)}
                 trend={trend('irpfEfectivo')}
+                trendYear={previousYear}
                 inverseTrend
                 subValue={`Marginal actual: ${formatPercent(irpf.tipoMarginal)}`}
                 helpText="Tipo efectivo: IRPF total / bruto anual. Marginal: último tramo estatal + Madrid."
@@ -627,6 +634,7 @@ const App = () => {
                 title="Ahorro Fiscal Generado"
                 value={formatCurrency(ahorroFiscalGenerado)}
                 trend={trend('ahorroTotal')}
+                trendYear={previousYear}
                 subValue="Diferido * tipo marginal"
                 helpText="Estimación del ahorro fiscal al aplicar el tipo marginal sobre el ahorro diferido."
                 icon={ShieldCheck}
