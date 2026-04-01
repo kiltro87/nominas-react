@@ -1,3 +1,17 @@
+/**
+ * IRPF bracket calculation for residents in the Community of Madrid (2024).
+ *
+ * Spain's personal income tax (IRPF) is split into two halves:
+ * - **State tranche** (tramo estatal) — fixed nationwide.
+ * - **Autonomous community tranche** (tramo autonómico) — set by each region.
+ *
+ * Madrid applies a flat 50 % bonus (bonificación) on the autonomous tranche,
+ * making it one of the lowest effective rates in Spain.
+ *
+ * The scales below are marginal: only the income that falls within each band
+ * is taxed at that band's rate.
+ */
+
 const MADRID_AUTONOMIC_SCALE_2024 = [
   { upTo: 13362.22, rate: 8.5 },
   { upTo: 19004.63, rate: 10.7 },
@@ -25,6 +39,36 @@ const formatRangeLabel = (from, to) => {
   return `${from.toFixed(2)} - ${to.toFixed(2)} EUR`;
 };
 
+/**
+ * Calculates the full IRPF breakdown for a given taxable base (Madrid, 2024).
+ *
+ * Returns the cuota (tax due) split by tranche and by state/autonomous origin,
+ * plus the effective and marginal rates.
+ *
+ * @param {number} baseLiquidableGeneral - Estimated general taxable base in EUR.
+ * @returns {{
+ *   base: number,
+ *   tramos: Array<{
+ *     label: string,
+ *     from: number,
+ *     to: number,
+ *     baseInRange: number,
+ *     rateState: number,
+ *     rateMadrid: number,
+ *     rateTotal: number,
+ *     cuotaState: number,
+ *     cuotaMadrid: number,
+ *     cuotaTotal: number,
+ *     tramoCapacity: number,
+ *     tramoCoveragePct: number,
+ *   }>,
+ *   cuotaState: number,
+ *   cuotaMadrid: number,
+ *   cuotaTotal: number,
+ *   tipoEfectivo: number,
+ *   tipoMarginal: number,
+ * }}
+ */
 export const calculateIrpfBreakdownMadrid = (baseLiquidableGeneral) => {
   const base = Math.max(Number(baseLiquidableGeneral) || 0, 0);
 

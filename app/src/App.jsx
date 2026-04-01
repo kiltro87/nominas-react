@@ -30,14 +30,28 @@ import { formatCurrency, formatPercent } from './utils/format';
 const App = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  // 'login' | 'reset-request' | 'set-password'
+  const [loginView, setLoginView] = useState('login');
   const [loginError, setLoginError] = useState('');
   const [loginInfo, setLoginInfo] = useState('');
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
   const [useMockData, setUseMockData] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
-  const { isReady, isAuthenticated, user, error: authConfigError, signInWithPassword, signInWithMagicLink, signOut } =
-    useSupabaseAuth();
+  const {
+    isReady,
+    isAuthenticated,
+    isPasswordRecovery,
+    user,
+    error: authConfigError,
+    signInWithPassword,
+    signInWithMagicLink,
+    resetPasswordForEmail,
+    updatePassword,
+    signOut,
+  } = useSupabaseAuth();
   const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, trend, sourceStatus } =
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
@@ -53,18 +67,21 @@ const App = () => {
   const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 66.6;
   const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 33.3;
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
+  const clearLoginMessages = () => {
     setLoginError('');
     setLoginInfo('');
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    clearLoginMessages();
     const normalizedEmail = email.trim().toLowerCase();
     const result = await signInWithPassword({ email: normalizedEmail, password });
     if (!result.ok) setLoginError(result.error ?? 'No se pudo iniciar sesion');
   };
 
   const handleMagicLink = async () => {
-    setLoginError('');
-    setLoginInfo('');
+    clearLoginMessages();
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       setLoginError('Indica primero tu email para enviarte el enlace de acceso.');
@@ -76,6 +93,43 @@ const App = () => {
       return;
     }
     setLoginInfo(`Te hemos enviado un enlace magico a ${normalizedEmail}.`);
+  };
+
+  const handleResetRequest = async (event) => {
+    event.preventDefault();
+    clearLoginMessages();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setLoginError('Indica tu email para restablecer la contraseña.');
+      return;
+    }
+    const result = await resetPasswordForEmail(normalizedEmail);
+    if (!result.ok) {
+      setLoginError(result.error ?? 'No se pudo enviar el email');
+      return;
+    }
+    setLoginInfo(`Revisa tu bandeja de entrada en ${normalizedEmail} y haz clic en el enlace para establecer tu contraseña.`);
+  };
+
+  const handleSetPassword = async (event) => {
+    event.preventDefault();
+    clearLoginMessages();
+    if (newPassword !== confirmPassword) {
+      setLoginError('Las contraseñas no coinciden.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setLoginError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    const result = await updatePassword(newPassword);
+    if (!result.ok) {
+      setLoginError(result.error ?? 'No se pudo actualizar la contraseña');
+      return;
+    }
+    setNewPassword('');
+    setConfirmPassword('');
+    setLoginInfo('Contraseña establecida correctamente. Ya puedes iniciar sesion.');
   };
 
   const handleLogout = async () => {
@@ -114,47 +168,137 @@ const App = () => {
     );
   }
 
-  if (!isAuthenticated) {
+  // When the user arrives via a password-reset email the SDK fires PASSWORD_RECOVERY
+  // before marking them as fully authenticated. Show the set-password form immediately.
+  const activeLoginView = isPasswordRecovery ? 'set-password' : loginView;
+
+  if (!isAuthenticated || isPasswordRecovery) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
         <div className="max-w-md w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
-          <h1 className="text-xl font-bold mb-2">Acceso privado</h1>
-          <p className="text-sm text-slate-300 mb-4">Inicia sesion con tu usuario de Supabase.</p>
-          {authConfigError && <p className="text-sm text-rose-300 mb-3">{authConfigError}</p>}
-          {loginError && <p className="text-sm text-rose-300 mb-3">{loginError}</p>}
-          {loginInfo && <p className="text-sm text-emerald-300 mb-3">{loginInfo}</p>}
 
-          <form onSubmit={handleLogin} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-              required
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="password"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-semibold py-2.5 rounded-lg"
-            >
-              Iniciar sesion
-            </button>
-            <button
-              type="button"
-              onClick={handleMagicLink}
-              className="w-full bg-slate-700 hover:bg-slate-600 transition-colors text-white font-semibold py-2.5 rounded-lg"
-            >
-              Enviar magic link
-            </button>
-          </form>
+          {/* ── Set new password (after clicking reset link) ── */}
+          {activeLoginView === 'set-password' && (
+            <>
+              <h1 className="text-xl font-bold mb-2">Establece tu contraseña</h1>
+              <p className="text-sm text-slate-400 mb-4">Elige una contraseña de al menos 8 caracteres.</p>
+              {loginError && <p className="text-sm text-rose-300 mb-3">{loginError}</p>}
+              {loginInfo && <p className="text-sm text-emerald-300 mb-3">{loginInfo}</p>}
+              <form onSubmit={handleSetPassword} className="space-y-3">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nueva contraseña"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  required
+                  minLength={8}
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirmar contraseña"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-semibold py-2.5 rounded-lg"
+                >
+                  Guardar contraseña
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* ── Request password reset email ── */}
+          {activeLoginView === 'reset-request' && (
+            <>
+              <h1 className="text-xl font-bold mb-2">Restablecer contraseña</h1>
+              <p className="text-sm text-slate-400 mb-4">
+                Introduce tu email y te enviaremos un enlace para establecer una nueva contraseña.
+              </p>
+              {loginError && <p className="text-sm text-rose-300 mb-3">{loginError}</p>}
+              {loginInfo && <p className="text-sm text-emerald-300 mb-3">{loginInfo}</p>}
+              <form onSubmit={handleResetRequest} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Tu email"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-semibold py-2.5 rounded-lg"
+                >
+                  Enviar enlace de restablecimiento
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => { clearLoginMessages(); setLoginView('login'); }}
+                className="mt-3 w-full text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                ← Volver al inicio de sesion
+              </button>
+            </>
+          )}
+
+          {/* ── Normal login ── */}
+          {activeLoginView === 'login' && (
+            <>
+              <h1 className="text-xl font-bold mb-2">Acceso privado</h1>
+              <p className="text-sm text-slate-300 mb-4">Inicia sesion con tu cuenta.</p>
+              {authConfigError && <p className="text-sm text-rose-300 mb-3">{authConfigError}</p>}
+              {loginError && <p className="text-sm text-rose-300 mb-3">{loginError}</p>}
+              {loginInfo && <p className="text-sm text-emerald-300 mb-3">{loginInfo}</p>}
+              <form onSubmit={handleLogin} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Contraseña"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 transition-colors text-white font-semibold py-2.5 rounded-lg"
+                >
+                  Iniciar sesion
+                </button>
+              </form>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleMagicLink}
+                  className="w-full bg-slate-700 hover:bg-slate-600 transition-colors text-white font-semibold py-2.5 rounded-lg text-sm"
+                >
+                  Acceder con magic link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { clearLoginMessages(); setLoginView('reset-request'); }}
+                  className="w-full text-sm text-slate-400 hover:text-slate-200 transition-colors py-1"
+                >
+                  ¿No tienes contraseña o la olvidaste?
+                </button>
+              </div>
+            </>
+          )}
+
         </div>
       </div>
     );
