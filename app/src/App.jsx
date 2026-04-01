@@ -58,7 +58,14 @@ const App = () => {
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
   const { portfolio } = usePortfolioData(isAuthenticated && !useMockData, useMockData);
-  const [portfolioYearFilter, setPortfolioYearFilter] = useState('all');
+  // '' means "auto" (default to last available year); explicit string = user selection
+  const [portfolioYearFilter, setPortfolioYearFilter] = useState('');
+  const portfolioYears = [...new Set(
+    portfolio.transactions
+      .map((t) => (t.aeat_fecha || t.operation_date || '').slice(0, 4))
+      .filter(Boolean),
+  )].sort();
+  const activePortfolioYear = portfolioYearFilter || portfolioYears[portfolioYears.length - 1] || 'all';
 
   const previousYear = String(Number(year) - 1);
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
@@ -754,27 +761,27 @@ const App = () => {
             </div>
 
             {/* ── Chart + Table side-by-side ── */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
 
               {/* Chart */}
               {portfolio.transactions.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex flex-col">
                   <h2 className="text-base font-bold flex items-center gap-2 mb-3">
-                    <BarChart3 className="text-indigo-500" size={18} />
+                    <BarChart3 className="text-blue-500" size={18} />
                     Evolución de Acciones Acumuladas
                   </h2>
                   {/* Legend */}
                   <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 mb-4">
                     <span className="flex items-center gap-2">
-                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="2" /></svg>
+                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#3b82f6" strokeWidth="2" /></svg>
                       Cartera neta
                     </span>
                     <span className="flex items-center gap-2">
-                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
+                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
                       RSU acumuladas
                     </span>
                     <span className="flex items-center gap-2">
-                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#f97316" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
+                      <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4,2" /></svg>
                       ESPP acumuladas
                     </span>
                   </div>
@@ -782,13 +789,14 @@ const App = () => {
                     const pts = portfolio.transactions.filter((t) => t.cumulative_qty != null);
                     if (pts.length < 2) return <p className="text-sm text-slate-400">Datos insuficientes para el gráfico.</p>;
 
-                    // Resolve transaction type: use transaction_type when available,
-                    // fall back to award_number presence (RSU) or aeat_tipo AD without award (ESPP)
+                    // Resolve transaction type: use transaction_type when present,
+                    // otherwise fall back to file_name heuristic + award_number
                     const resolveType = (t) => {
                       if (t.transaction_type) return t.transaction_type.trim();
                       if (t.aeat_tipo === 'TR') return 'Trade';
-                      if (t.award_number) return 'Adquisition RSU';
-                      if (t.aeat_tipo === 'AD') return 'Adquisition ESPP';
+                      const name = (t.file_name || '').toLowerCase();
+                      if (name.includes('rsu') || t.award_number) return 'Adquisition RSU';
+                      if (name.includes('espp') || t.aeat_tipo === 'AD') return 'Adquisition ESPP';
                       return '';
                     };
 
@@ -831,13 +839,13 @@ const App = () => {
                     });
 
                     const SERIES = [
-                      { field: 'cumulative_qty', stroke: '#6366f1', width: '1.2', dash: null },
-                      { field: 'rsu_running',    stroke: '#0ea5e9', width: '0.8', dash: '2,1' },
-                      { field: 'espp_running',   stroke: '#f97316', width: '0.8', dash: '2,1' },
+                      { field: 'cumulative_qty', stroke: '#3b82f6', width: '1.2', dash: null },
+                      { field: 'rsu_running',    stroke: '#6366f1', width: '0.8', dash: '2,1' },
+                      { field: 'espp_running',   stroke: '#10b981', width: '0.8', dash: '2,1' },
                     ];
 
                     return (
-                      <svg viewBox="0 0 100 62" className="w-full">
+                      <svg viewBox="0 0 100 62" className="w-full flex-1">
                         {yTicks.map(({ value, y }) => (
                           <g key={`yt-${value}`}>
                             <line x1={L} y1={y} x2={R} y2={y} stroke="#f1f5f9" strokeWidth="0.4" />
@@ -891,16 +899,12 @@ const App = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar size={14} className="text-slate-400" />
                       <select
-                        value={portfolioYearFilter}
+                        value={activePortfolioYear}
                         onChange={(e) => setPortfolioYearFilter(e.target.value)}
                         className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="all">Todos los años</option>
-                        {[...new Set(
-                          portfolio.transactions
-                            .map((t) => (t.aeat_fecha || t.operation_date || '').slice(0, 4))
-                            .filter(Boolean)
-                        )].sort().map((yr) => (
+                        {portfolioYears.slice().reverse().map((yr) => (
                           <option key={yr} value={yr}>{yr}</option>
                         ))}
                       </select>
@@ -925,7 +929,7 @@ const App = () => {
                       </thead>
                       <tbody>
                         {portfolio.transactions
-                          .filter((tx) => portfolioYearFilter === 'all' || (tx.aeat_fecha || tx.operation_date || '').startsWith(portfolioYearFilter))
+                          .filter((tx) => activePortfolioYear === 'all' || (tx.aeat_fecha || tx.operation_date || '').startsWith(activePortfolioYear))
                           .map((tx) => {
                             const isSell = tx.aeat_tipo === 'TR' || tx.transaction_type === 'Trade';
                             return (
