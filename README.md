@@ -125,7 +125,8 @@ Ve a **Settings → Secrets and variables → Actions** y añade:
 | `VITE_SUPABASE_ANON_KEY` | Clave pública | Supabase → Settings → API → `anon public` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave privada del servidor | Supabase → Settings → API → `service_role` |
 | `GOOGLE_CREDENTIALS_JSON` | Contenido completo del JSON | Fichero descargado en el paso anterior (pega el texto, no el nombre) |
-| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive | URL de la carpeta: `drive.google.com/drive/folders/<ID>` |
+| `DRIVE_FOLDER_ID` | ID de la carpeta de Drive con nóminas | URL de la carpeta: `drive.google.com/drive/folders/<ID>` |
+| `PORTFOLIO_FILE_ID` | ID del Excel de cartera en Drive | URL del fichero: `drive.google.com/file/d/<ID>/view` |
 
 > `VITE_SUPABASE_URL` lo usan tanto la app React como el pipeline Python (evita duplicar el secret).
 
@@ -227,6 +228,40 @@ DELETE FROM public.control WHERE file_id = '<id_del_archivo>';
 ```
 
 Luego ejecuta la ingesta de nuevo.
+
+---
+
+## Cartera de Valores (ESPP / RSU)
+
+### Configuración
+
+La pestaña **Inversiones** de la app muestra los datos del Excel de cartera generado por el script de procesado de PDFs de eTrade. Para sincronizarlo:
+
+1. Localiza el ID del fichero Excel en Google Drive (URL: `drive.google.com/file/d/<ID>/view`)
+2. Añade el secret `PORTFOLIO_FILE_ID` en GitHub → Settings → Secrets and variables → Actions
+
+### Ejecutar la ingesta de cartera
+
+1. Ve a **GitHub → Actions → Ingesta Nominas Drive to Supabase → Run workflow**
+2. Activa la opción **"Sincronizar cartera de valores"** → Run workflow
+
+El job `portfolio` descarga el Excel, descarta duplicados y hace upsert en la tabla `portfolio_transactions`.
+
+### Estructura del Excel esperado
+
+| Columna | Descripción |
+|---|---|
+| `FILE_NAME` | Nombre del PDF origen (clave de deduplicación) |
+| `RELEASE_PURCHASE_TRADE_DATE` | Fecha de la operación |
+| `QUANTITY` | Nº de acciones (negativo en ventas) |
+| `STOCK_PRICE` | Precio en USD |
+| `NET_AMOUNT` | Importe neto en USD |
+| `AEAT_Tipo_Operacion` | `AD` (adquisición) o `TR` (venta) |
+| `AEAT_Fecha` | Fecha en formato dd/mm/yyyy |
+| `AEAT_Num_Titulos` | Nº de títulos (siempre positivo) |
+| `Conversion_Rate` | Tipo de cambio USD/EUR |
+| `AEAT_Importe_Euro` | Importe convertido a EUR |
+| `CUMULATIVE_QUANTITY` | Acciones acumuladas en cartera tras la operación |
 
 ---
 

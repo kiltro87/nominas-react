@@ -22,8 +22,8 @@ Tareas pendientes ordenadas por prioridad. Marcar con `[x]` cuando estén comple
 
 ## Acciones e Inversiones
 
-- [ ] **Sincronizar datos de cartera desde la hoja de Google de Iñaki**
-  El script de Iñaki deposita datos de RSU y ESPP en una hoja de Google Sheets. Crear un proceso de ingesta que lea esa hoja (Google Sheets API) y almacene los datos en Supabase. La tabla debería registrar tipo de acción (RSU/ESPP), cantidad, fecha de adquisición/liberación, precio de compra y valor actual. Con esto la app podría mostrar el número de acciones en cartera, su valor total y la rentabilidad acumulada.
+- [x] **Sincronizar datos de cartera desde la hoja de Excel**
+  El script deposita datos de RSU y ESPP en una hoja de Google Sheets. Crear un proceso de ingesta que lea esa hoja (ConsolidatedConfirmations.xlsx) y almacene los datos en Supabase. La tabla debería registrar tipo de acción (RSU/ESPP), cantidad, fecha de adquisición/liberación, precio de compra y valor actual. Con esto la app podría mostrar el número de acciones en cartera, su valor total y la rentabilidad acumulada.
 
 - [ ] **Leer documentos de calendario de liberación de RSU**
   Procesar los documentos de vesting schedule (PDFs o similares) para extraer automáticamente las fechas y cantidades de cada liberación futura de RSU. Los datos deberían guardarse en Supabase y la app debería mostrar una línea de tiempo con los próximos eventos de vesting.

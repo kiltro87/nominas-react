@@ -16,6 +16,7 @@ import {
   PiggyBank,
   Receipt,
   ShieldCheck,
+  Table,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -23,6 +24,7 @@ import {
 import ProgressBar from './components/ProgressBar';
 import StatCard from './components/StatCard';
 import { usePayrollData } from './hooks/usePayrollData';
+import { usePortfolioData } from './hooks/usePortfolioData';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useStockPrice } from './hooks/useStockPrice';
 import { formatCurrency, formatPercent } from './utils/format';
@@ -55,6 +57,7 @@ const App = () => {
   const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, trend, sourceStatus } =
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
+  const { portfolio } = usePortfolioData(isAuthenticated && !useMockData);
 
   const previousYear = String(Number(year) - 1);
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
@@ -717,63 +720,157 @@ const App = () => {
 
         {activeTab === 'investments' && (
           <div className="space-y-8 animate-in fade-in duration-500">
+
+            {/* ── Summary cards ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatCard
-                title="Capital en Acciones (ESPP+RSU)"
-                value={formatCurrency(capitalAcciones)}
-                subValue={crmPrice ? `Unidades * CRM (${crmPrice.toFixed(2)} USD)` : 'Esperando precio CRM'}
-                helpText="(ESPP neto + RSU) multiplicado por el precio actual de CRM."
+                title="Acciones en Cartera (CRM)"
+                value={isPrivacyMode ? '••••••' : `${portfolio.currentQty} títulos`}
+                subValue={
+                  portfolio.currentQty > 0 && crmPrice
+                    ? `≈ ${formatCurrency(portfolio.currentQty * crmPrice)} USD`
+                    : crmPrice == null ? 'Precio CRM no disponible' : 'Sin datos de cartera'
+                }
+                helpText="Número de acciones CRM acumuladas según el último registro de cartera. Valor estimado al precio actual."
                 icon={Briefcase}
                 color="blue"
+                isPrivate={isPrivacyMode}
+              />
+              <StatCard
+                title="Coste Total de Adquisicion"
+                value={formatCurrency(portfolio.totalEurValue)}
+                subValue="Suma AEAT importe EUR (adquisiciones)"
+                helpText="Suma del importe en euros de todas las adquisiciones (AD) registradas en cartera."
+                icon={Wallet}
+                color="indigo"
                 isPrivate={isPrivacyMode}
               />
               <StatCard
                 title="Ahorro Jubilacion Acumulado"
                 value={formatCurrency((annual.pensionCompanyTotal ?? 0) + (annual.pensionEmployeeTotal ?? 0))}
                 subValue="Empresa + Empleado"
-                helpText="Suma de aportaciones al plan de pensiones de empresa y empleado."
+                helpText="Suma de aportaciones al plan de pensiones de empresa y empleado en el año seleccionado."
                 icon={PiggyBank}
                 color="emerald"
                 isPrivate={isPrivacyMode}
               />
-              <StatCard
-                title="Rentabilidad Diferida YTD"
-                value={rentabilidadDiferida == null ? 'N/D' : formatPercent(rentabilidadDiferida)}
-                subValue="(Capital actual - unidades) / unidades"
-                helpText="Indicador aproximado de rentabilidad sobre el bloque diferido ligado a ESPP/RSU."
-                icon={TrendingUp}
-                color="indigo"
-              />
             </div>
 
+            {/* ── Portfolio value chart ── */}
+            {portfolio.transactions.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                  <BarChart3 className="text-blue-500" size={22} />
+                  Evolucion de Acciones Acumuladas
+                </h2>
+                <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 mb-3">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Títulos acumulados</span>
+                </div>
+                <svg viewBox="0 0 100 34" className="w-full h-48 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
+                  {(() => {
+                    const pts = portfolio.transactions.filter((t) => t.cumulative_qty != null);
+                    if (pts.length < 2) return null;
+                    const maxVal = Math.max(...pts.map((t) => t.cumulative_qty), 1);
+                    const toPoints = () =>
+                      pts.map((t, i) => {
+                        const x = (i / (pts.length - 1)) * 96 + 2;
+                        const y = 30 - (t.cumulative_qty / maxVal) * 26;
+                        return `${x},${y}`;
+                      }).join(' ');
+                    const pointsStr = toPoints();
+                    const firstPt = pointsStr.split(' ')[0];
+                    const lastPt = pointsStr.split(' ').slice(-1)[0];
+                    return (
+                      <>
+                        <polyline fill="none" stroke="#3b82f6" strokeWidth="0.8" strokeLinejoin="round" points={pointsStr} />
+                        <circle cx={firstPt.split(',')[0]} cy={firstPt.split(',')[1]} r="1" fill="#3b82f6" />
+                        <circle cx={lastPt.split(',')[0]} cy={lastPt.split(',')[1]} r="1.2" fill="#3b82f6" />
+                      </>
+                    );
+                  })()}
+                </svg>
+                <div className="flex justify-between text-xs text-slate-400 mt-2 px-1">
+                  <span>{portfolio.transactions[0]?.aeat_fecha ?? '—'}</span>
+                  <span>{portfolio.transactions[portfolio.transactions.length - 1]?.aeat_fecha ?? '—'}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── AEAT Cartera de Valores table ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                <Table className="text-rose-500" size={22} />
+                Cartera de Valores (AEAT)
+              </h2>
+              {portfolio.transactions.length === 0 ? (
+                <p className="text-sm text-slate-400">No hay transacciones cargadas. Ejecuta el pipeline de cartera desde GitHub Actions.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold uppercase tracking-wide">
+                        <th className="text-left py-2 pr-4">Fecha AEAT</th>
+                        <th className="text-left py-2 pr-4">Tipo</th>
+                        <th className="text-right py-2 pr-4">Nº Títulos</th>
+                        <th className="text-right py-2 pr-4">Precio USD</th>
+                        <th className="text-right py-2 pr-4">TC</th>
+                        <th className="text-right py-2 pr-4">Importe EUR</th>
+                        <th className="text-right py-2">Acumulado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portfolio.transactions.map((tx) => (
+                        <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2 pr-4 font-medium">{tx.aeat_fecha ?? tx.operation_date ?? '—'}</td>
+                          <td className="py-2 pr-4">
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${tx.aeat_tipo === 'AD' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                              {tx.aeat_tipo === 'AD' ? 'Adquisición' : tx.aeat_tipo === 'TR' ? 'Venta' : tx.aeat_tipo ?? '—'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 text-right">{isPrivacyMode ? '•••' : (tx.aeat_num_titulos ?? tx.quantity ?? '—')}</td>
+                          <td className="py-2 pr-4 text-right">{isPrivacyMode ? '•••' : (tx.stock_price_usd != null ? `$${tx.stock_price_usd.toFixed(2)}` : '—')}</td>
+                          <td className="py-2 pr-4 text-right text-slate-400">{tx.conversion_rate != null ? tx.conversion_rate.toFixed(4) : '—'}</td>
+                          <td className={`py-2 pr-4 text-right font-semibold ${tx.aeat_tipo === 'TR' ? 'text-rose-600' : 'text-emerald-700'}`}>
+                            {isPrivacyMode ? '•••' : (tx.aeat_importe_eur != null ? formatCurrency(tx.aeat_importe_eur) : '—')}
+                          </td>
+                          <td className="py-2 text-right text-slate-500">{isPrivacyMode ? '•••' : (tx.cumulative_qty ?? '—')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── Pension + Vesting ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
                 <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
                   <Clock className="text-blue-500" size={22} />
-                  Calendario de Vesting (Proximos 12 Meses)
+                  Calendario de Vesting
                 </h2>
-                <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 space-y-8 py-2">
-                  {vestingSchedule.map((vest, i) => (
-                    <div key={i} className="relative pl-6">
-                      <div
-                        className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 ${vest.status === 'pending' ? 'bg-blue-500' : 'bg-slate-300'}`}
-                      />
-
-                      <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-4 rounded-2xl">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-sm">{vest.type} Release</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            {isPrivacyMode ? '•••' : formatCurrency(vest.amount)}
-                          </span>
+                {vestingSchedule.length === 0 ? (
+                  <p className="text-sm text-slate-400">Sin datos de vesting. Pendiente de implementar lectura de PDFs de calendario RSU.</p>
+                ) : (
+                  <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 space-y-8 py-2">
+                    {vestingSchedule.map((vest, i) => (
+                      <div key={i} className="relative pl-6">
+                        <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 ${vest.status === 'pending' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-4 rounded-2xl">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold text-sm">{vest.type} Release</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {isPrivacyMode ? '•••' : formatCurrency(vest.amount)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {vest.date} • {vest.status === 'pending' ? 'Proximo a devengar' : 'Bloqueado / Future grant'}
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500">
-                          {vest.date} •{' '}
-                          {vest.status === 'pending' ? 'Proximo a devengar' : 'Bloqueado / Future grant'}
-                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">

@@ -10,6 +10,12 @@ on:
         description: "Maximo de PDFs a procesar (opcional)"
         required: false
         default: ""
+      run_portfolio:
+        description: "Sincronizar cartera de valores (Excel Drive)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
   schedule:
     - cron: "0 8 1 * *"
   push:
@@ -100,3 +106,56 @@ jobs:
           else
             python drive_ingestor.py --config config.json
           fi
+
+  portfolio:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_portfolio == 'true' }}
+    needs: tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write credentials and config
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          PORTFOLIO_FILE_ID: ${{ secrets.PORTFOLIO_FILE_ID }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SCHEMA: ${{ secrets.SUPABASE_SCHEMA }}
+        run: |
+          test -n "$GOOGLE_CREDENTIALS_JSON"
+          test -n "$PORTFOLIO_FILE_ID"
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+          python - <<'PY'
+          import json
+          import os
+
+          cfg = {
+              "credentials_path": "credentials.json",
+              "portfolio_file_id": os.environ["PORTFOLIO_FILE_ID"],
+              "supabase_url": os.environ["SUPABASE_URL"],
+              "supabase_service_role_key": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+              "supabase_schema": os.environ.get("SUPABASE_SCHEMA") or "public",
+          }
+          with open("config.json", "w", encoding="utf-8") as f:
+              json.dump(cfg, f, ensure_ascii=False, indent=2)
+          PY
+
+      - name: Run portfolio ingestor
+        run: python portfolio_ingestor.py --config config.json

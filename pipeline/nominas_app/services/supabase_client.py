@@ -100,3 +100,24 @@ class SupabaseClient:
             body=rows,
             headers={"Prefer": "return=minimal"},
         )
+
+    def upsert_rows(self, table: str, rows: list[dict[str, Any]], on_conflict: str = "") -> None:
+        """Insert rows, updating existing ones on conflict.
+
+        Args:
+            table: Target table name.
+            rows: List of row dicts to upsert.
+            on_conflict: Comma-separated column name(s) that define the conflict key.
+        """
+        if not rows:
+            return
+        prefer = "resolution=merge-duplicates,return=minimal"
+        extra: dict[str, str] = {"Prefer": prefer}
+        params = {"on_conflict": on_conflict} if on_conflict else None
+        self._request(
+            "POST",
+            f"/rest/v1/{table}",
+            params=params,
+            body=rows,
+            headers=extra,
+        )
