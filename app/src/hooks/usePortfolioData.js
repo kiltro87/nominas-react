@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
+import { portfolioMockData } from '../data/payrollData';
 import { fetchPortfolioData } from '../services/portfolioRepository';
 
 const EMPTY = { transactions: [], currentQty: 0, totalEurValue: 0 };
 
 /**
- * Loads portfolio transactions from Supabase.
+ * Loads portfolio transactions from Supabase, or returns mock data.
  *
  * @param {boolean} enabled - Only fetch when the user is authenticated.
+ * @param {boolean} forceMock - Return mock data instead of querying Supabase.
  * @returns {{ portfolio: typeof EMPTY, loading: boolean, error: string|null }}
  */
-export const usePortfolioData = (enabled = true) => {
-  const [portfolio, setPortfolio] = useState(EMPTY);
+export const usePortfolioData = (enabled = true, forceMock = false) => {
+  const [portfolio, setPortfolio] = useState(forceMock ? portfolioMockData : EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (forceMock) {
+      setPortfolio(portfolioMockData);
+      return () => {};
+    }
     let cancelled = false;
     if (!enabled) return () => {};
 
@@ -35,7 +41,7 @@ export const usePortfolioData = (enabled = true) => {
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, [enabled, forceMock]);
 
   return { portfolio, loading, error };
 };
