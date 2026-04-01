@@ -1,8 +1,27 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, Tuple
 
 import pandas as pd
+
+# Matches concepts like "TRIBUTACION I.R.P.F.33,17" where the IRPF rate is
+# embedded directly in the concept name (integer and decimal parts captured
+# separately to avoid locale-dependent decimal parsing).
+_IRPF_EMBEDDED_RE = re.compile(
+    r"TRIBUTACION\s+I\.R\.P\.F\.(\d+)[,\.](\d+)", re.IGNORECASE
+)
+
+
+def _embedded_irpf_pct(concept_norm: str) -> "float | None":
+    """Return the IRPF rate as a decimal (0–1) if encoded in the concept name."""
+    m = _IRPF_EMBEDDED_RE.search(concept_norm)
+    if m:
+        try:
+            return float(f"{m.group(1)}.{m.group(2)}") / 100.0
+        except ValueError:
+            pass
+    return None
 
 MONTH_NAMES_ES = {
     1: "Ene",
@@ -89,12 +108,7 @@ def _build_base(df: pd.DataFrame) -> pd.DataFrame:
     out["is_rsu_gain"] = out["Subcat_norm"] == "INGRESO VARIABLE (RSU)"
     # Some PDFs embed the IRPF rate directly in the concept name, e.g.
     # "TRIBUTACION I.R.P.F.33,17" — extract it as a decimal fraction.
-    _pct_raw = out["Concepto_norm"].str.extract(
-        r"TRIBUTACION\s+I\.R\.P\.F\.(\d+[,\.]\d+)", expand=False
-    )
-    out["irpf_pct_embedded"] = pd.to_numeric(
-        _pct_raw.str.replace(",", ".", regex=False), errors="coerce"
-    ) / 100.0
+    out["irpf_pct_embedded"] = out["Concepto_norm"].apply(_embedded_irpf_pct)
     out = out.dropna(subset=["Año", "Mes"])
     out["Año"] = out["Año"].astype(int)
     out["Mes"] = out["Mes"].astype(int)
