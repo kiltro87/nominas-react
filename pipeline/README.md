@@ -11,7 +11,7 @@ Para la documentación completa del sistema consulta el [README raíz](../README
 |---|---|
 | `extractor.py` | Extrae texto/tablas del PDF, detecta período, clasifica líneas y construye filas. Divide automáticamente conceptos con IRPF embebido (e.g. `TRIBUTACION I.R.P.F.33,17`) en una fila de importe y una fila `% IRPF` separada. |
 | `drive_ingestor.py` | Orquesta Drive → extracción → Supabase; renombra y mueve PDFs |
-| `subcategorias.json` | Catálogo editable concepto → subcategoría |
+| `Categorias de conceptos.json` | Catálogo editable concepto → categoría + subcategoría |
 | `nominas_app/services/supabase_client.py` | Cliente REST Supabase (select, insert, paginación) |
 | `nominas_app/services/config_loader.py` | Carga `config.json` o secrets de entorno |
 
@@ -66,7 +66,7 @@ Luego vuelve a ejecutar la ingesta. El `file_id` está visible en la tabla `cont
 
 ### Añadir o corregir la clasificación de un concepto
 
-Edita `subcategorias.json`. El campo `rules_version` en `control` registra con qué versión del catálogo se clasificó cada archivo, lo que permite auditar cambios.
+Edita `Categorias de conceptos.json`. Cada entrada tiene tres campos: `concepto` (token de búsqueda), `categoria` (`"Ingreso"` o `"Deducción"`) y `subcategoria`. El campo `rules_version` en `control` registra con qué versión del catálogo se clasificó cada archivo, lo que permite auditar cambios.
 
 ### Actualizar la materialized view manualmente
 

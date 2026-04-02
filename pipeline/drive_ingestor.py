@@ -12,7 +12,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
-from extractor import extract_payroll, get_subcategory_rules_version
+from extractor import extract_payroll, get_concept_rules_version
 from nominas_app.services.supabase_client import SupabaseClient
 
 
@@ -311,7 +311,7 @@ def process_new_payrolls(config_path: str, limit: int | None = None) -> Dict[str
 
     drive = build_drive_service(credentials_path)
     sheets = SupabaseClient(supabase_url, supabase_service_role_key, schema=supabase_schema)
-    rules_version = get_subcategory_rules_version()
+    rules_version = get_concept_rules_version()
 
     processed_ids, processed_md5, modified_after = get_processing_state(sheets)
     files = list_pdf_files(drive, folder_id, modified_after=modified_after)

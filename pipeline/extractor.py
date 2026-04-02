@@ -10,49 +10,49 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pdfplumber
 
-DEFAULT_SUBCATEGORY_RULES = [
-    ("SALARIO BASE", "Ingreso Fijo"),
-    ("PLUS CONVENIO", "Ingreso Fijo"),
-    ("ANTIGUEDAD", "Ingreso Fijo"),
-    ("PAGA EXTRA VERANO", "Ingreso Fijo"),
-    ("PAGA EXTRA NAVIDAD", "Ingreso Fijo"),
-    ("SALARIO EXTRANJERO 7.P", "Ingreso Fijo"),
-    ("MEJ VOL ABSORB", "Ingreso Fijo"),
-    ("CAR ALLOWANCE", "Ingreso Fijo"),
-    ("TELETRABAJO", "Ingreso Fijo"),
-    ("SPOT BONUS", "Ingreso Variable (Bonus)"),
-    ("COMMISSIONS DEFERRED", "Ingreso Variable (Bonus)"),
-    ("DIVIDEND PAY", "Ingreso Variable (Dividendos)"),
-    ("ESPP GAIN", "Ingreso Variable (ESPP)"),
-    ("RSU GAIN", "Ingreso Variable (RSU)"),
-    ("STOCK OPTIONS", "Ingreso Variable (RSU)"),
-    ("RETRIB. FLEXIBLE", "Beneficio en Especie"),
-    ("VISION BIK", "Beneficio en Especie"),
-    ("GIFT", "Beneficio en Especie"),
-    ("TICKET RESTAURANT - NO IRPF", "Beneficio en Especie"),
-    ("TICKET RESTAURANT - EXCESO", "Beneficio en Especie"),
-    ("SEGURO MEDICO ESPECIE", "Beneficio en Especie"),
-    ("SEG. MEDICO ESPECIE NO IRPF", "Beneficio en Especie"),
-    ("SEGURO MEDICO ESPECIE NO IRPF", "Beneficio en Especie"),
-    ("SEGURO VIDA", "Beneficio en Especie"),
-    ("FITNESS REIMB.", "Beneficio en Especie"),
-    ("TICKET TRANSPORTE - NO IRPF", "Beneficio en Especie"),
-    ("SEGURO ACC. ESPECIE", "Beneficio en Especie"),
-    ("TRIBUTACION I.R.P.F.", "Impuestos (IRPF)"),
-    ("TRIBUTACION IRPF", "Impuestos (IRPF)"),
-    ("TAX REFUND", "Impuestos (Ajustes)"),
-    ("IMP. INGR. A. CTA. VALORES ESPECIE", "Impuestos (Ajustes)"),
-    ("COTIZACION CONT.COMU", "Seguridad Social"),
-    ("COTIZACION MEI", "Seguridad Social"),
-    ("COTIZACION ADIC. SOLIDARIDAD", "Seguridad Social"),
-    ("COTIZACION FORMACION", "Seguridad Social"),
-    ("COTIZACION DESEMPLEO", "Seguridad Social"),
-    ("PLAN PENSIONES - APORT EMPRESA", "Ahorro Jubilación"),
-    ("APORT. EMPLEADO P. PENS.", "Ahorro Jubilación"),
-    ("ESPP DEDUCCION", "Inversión Acciones (ESPP)"),
-    ("-ESPP REFUND", "Inversión Acciones (ESPP)"),
-    ("DCTO CONCEPTOS EN ESPECIE", "Ajuste Contable"),
-    ("IMPM. INGR. A CTA. ESP. CG.", "Ajuste Contable"),
+DEFAULT_CONCEPT_RULES = [
+    ("SALARIO BASE", "Ingreso", "Ingreso Fijo"),
+    ("PLUS CONVENIO", "Ingreso", "Ingreso Fijo"),
+    ("ANTIGUEDAD", "Ingreso", "Ingreso Fijo"),
+    ("PAGA EXTRA VERANO", "Ingreso", "Ingreso Fijo"),
+    ("PAGA EXTRA NAVIDAD", "Ingreso", "Ingreso Fijo"),
+    ("SALARIO EXTRANJERO 7.P", "Ingreso", "Ingreso Fijo"),
+    ("MEJ VOL ABSORB", "Ingreso", "Ingreso Fijo"),
+    ("CAR ALLOWANCE", "Ingreso", "Ingreso Fijo"),
+    ("TELETRABAJO", "Ingreso", "Ingreso Fijo"),
+    ("SPOT BONUS", "Ingreso", "Ingreso Variable (Bonus)"),
+    ("COMMISSIONS DEFERRED", "Ingreso", "Ingreso Variable (Bonus)"),
+    ("DIVIDEND PAY", "Ingreso", "Ingreso Variable (Dividendos)"),
+    ("ESPP GAIN", "Ingreso", "Ingreso Variable (ESPP)"),
+    ("RSU GAIN", "Ingreso", "Ingreso Variable (RSU)"),
+    ("STOCK OPTIONS", "Ingreso", "Ingreso Variable (RSU)"),
+    ("RETRIB. FLEXIBLE", "Ingreso", "Beneficio en Especie"),
+    ("VISION BIK", "Ingreso", "Beneficio en Especie"),
+    ("GIFT", "Ingreso", "Beneficio en Especie"),
+    ("TICKET RESTAURANT - NO IRPF", "Ingreso", "Beneficio en Especie"),
+    ("TICKET RESTAURANT - EXCESO", "Ingreso", "Beneficio en Especie"),
+    ("SEGURO MEDICO ESPECIE", "Ingreso", "Beneficio en Especie"),
+    ("SEG. MEDICO ESPECIE NO IRPF", "Ingreso", "Beneficio en Especie"),
+    ("SEGURO MEDICO ESPECIE NO IRPF", "Ingreso", "Beneficio en Especie"),
+    ("SEGURO VIDA", "Ingreso", "Beneficio en Especie"),
+    ("FITNESS REIMB.", "Ingreso", "Beneficio en Especie"),
+    ("TICKET TRANSPORTE - NO IRPF", "Ingreso", "Beneficio en Especie"),
+    ("SEGURO ACC. ESPECIE", "Ingreso", "Beneficio en Especie"),
+    ("PLAN PENSIONES - APORT EMPRESA", "Ingreso", "Ahorro Jubilación"),
+    ("TRIBUTACION I.R.P.F.", "Deducción", "Impuestos (IRPF)"),
+    ("TRIBUTACION IRPF", "Deducción", "Impuestos (IRPF)"),
+    ("TAX REFUND", "Deducción", "Impuestos (Ajustes)"),
+    ("IMP. INGR. A. CTA. VALORES ESPECIE", "Deducción", "Impuestos (Ajustes)"),
+    ("COTIZACION CONT.COMU", "Deducción", "Seguridad Social"),
+    ("COTIZACION MEI", "Deducción", "Seguridad Social"),
+    ("COTIZACION ADIC. SOLIDARIDAD", "Deducción", "Seguridad Social"),
+    ("COTIZACION FORMACION", "Deducción", "Seguridad Social"),
+    ("COTIZACION DESEMPLEO", "Deducción", "Seguridad Social"),
+    ("APORT. EMPLEADO P. PENS.", "Deducción", "Ahorro Jubilación"),
+    ("ESPP DEDUCCION", "Deducción", "Inversión Acciones (ESPP)"),
+    ("-ESPP REFUND", "Deducción", "Inversión Acciones (ESPP)"),
+    ("DCTO CONCEPTOS EN ESPECIE", "Deducción", "Ajuste Contable"),
+    ("IMPM. INGR. A CTA. ESP. CG.", "Deducción", "Ajuste Contable"),
 ]
 
 
@@ -121,40 +121,44 @@ def normalize_key(s: str) -> str:
     return re.sub(r"\s+", " ", ascii_only).strip()
 
 
-def load_subcategory_rules() -> List[Tuple[str, str]]:
-    config_path = Path(__file__).with_name("subcategorias.json")
+def load_concept_rules() -> List[Tuple[str, str, str]]:
+    config_path = Path(__file__).with_name("Categorias de conceptos.json")
     if not config_path.exists():
-        return DEFAULT_SUBCATEGORY_RULES
+        return DEFAULT_CONCEPT_RULES
 
     try:
         payload = json.loads(config_path.read_text(encoding="utf-8"))
-        rules: List[Tuple[str, str]] = []
+        rules: List[Tuple[str, str, str]] = []
         for item in payload:
             if not isinstance(item, dict):
                 continue
-            match = str(item.get("match", "")).strip()
-            subcategory = str(item.get("subcategory", "")).strip()
-            if match and subcategory:
-                rules.append((match, subcategory))
-        return rules or DEFAULT_SUBCATEGORY_RULES
+            concepto = str(item.get("concepto", "")).strip()
+            categoria = str(item.get("categoria", "")).strip()
+            subcategoria = str(item.get("subcategoria", "")).strip()
+            if concepto and categoria and subcategoria:
+                rules.append((concepto, categoria, subcategoria))
+        return rules or DEFAULT_CONCEPT_RULES
     except (json.JSONDecodeError, OSError):
-        return DEFAULT_SUBCATEGORY_RULES
+        return DEFAULT_CONCEPT_RULES
 
 
-def get_subcategory_rules_version() -> str:
+def get_concept_rules_version() -> str:
     """Devuelve un hash corto para auditar cambios en reglas de clasificación."""
-    config_path = Path(__file__).with_name("subcategorias.json")
+    config_path = Path(__file__).with_name("Categorias de conceptos.json")
     if config_path.exists():
         payload = config_path.read_bytes()
     else:
-        payload = json.dumps(DEFAULT_SUBCATEGORY_RULES, ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(DEFAULT_CONCEPT_RULES, ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:12]
 
 
 @lru_cache(maxsize=1)
-def get_normalized_subcategory_rules() -> Tuple[Tuple[str, str], ...]:
+def get_normalized_subcategory_rules() -> Tuple[Tuple[str, str, str], ...]:
     """Normaliza una sola vez los tokens de matching para acelerar clasificación."""
-    return tuple((normalize_key(token), subcategory) for token, subcategory in load_subcategory_rules())
+    return tuple(
+        (normalize_key(concepto), categoria, subcategoria)
+        for concepto, categoria, subcategoria in load_concept_rules()
+    )
 
 
 def parse_period_from_text(text: str) -> Tuple[Optional[int], Optional[int], Dict[str, Optional[str]]]:
@@ -311,12 +315,13 @@ def _extract_liquido(text: str) -> Optional[float]:
     return None
 
 
-def _match_subcategory(concept: str, rules: Tuple[Tuple[str, str], ...]) -> str:
+def _match_classification(concept: str, rules: Tuple[Tuple[str, str, str], ...]) -> Tuple[Optional[str], str]:
+    """Returns (categoria_from_json | None, subcategoria) for the given concept."""
     key = normalize_key(concept)
-    for token, subcategory in rules:
+    for token, categoria, subcategoria in rules:
         if token in key:
-            return subcategory
-    return "No clasificado"
+            return categoria, subcategoria
+    return None, "No clasificado"
 
 
 _IRPF_EMBEDDED_RE = re.compile(r"TRIBUTACION\s+I\.R\.P\.F\.(\d+)[,\.](\d+)", re.IGNORECASE)
@@ -353,21 +358,24 @@ def split_irpf_embedded_pct_rows(sheet_rows: List[Dict[str, Any]]) -> List[Dict[
 
 
 def classify_entry(
-    concept: str, dev: Optional[float], ded: Optional[float], rules: Tuple[Tuple[str, str], ...]
+    concept: str, dev: Optional[float], ded: Optional[float], rules: Tuple[Tuple[str, str, str], ...]
 ) -> Tuple[str, str, float]:
-    subcategory = _match_subcategory(concept, rules)
+    json_categoria, subcategoria = _match_classification(concept, rules)
 
     if ded is not None:
         # DEDUCCIONES puede traer importes negativos (refund): deben mantener signo.
         # Ejemplo: ded=+100 -> importe=-100, ded=-100 -> importe=+100.
-        return "Devengo", subcategory, -ded
+        categoria = json_categoria if json_categoria else "Deducción"
+        return categoria, subcategoria, -ded
 
     if dev is not None:
         if dev < 0:
-            return "Devengo", subcategory, dev
-        return "Ingreso", subcategory, dev
+            categoria = json_categoria if json_categoria else "Deducción"
+            return categoria, subcategoria, dev
+        categoria = json_categoria if json_categoria else "Ingreso"
+        return categoria, subcategoria, dev
 
-    return "Devengo", "No clasificado", 0.0
+    return json_categoria if json_categoria else "Deducción", "No clasificado", 0.0
 
 
 def extract_payroll(pdf_path: str) -> Dict[str, Any]:

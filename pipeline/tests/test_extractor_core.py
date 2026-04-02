@@ -32,7 +32,7 @@ def test_money_to_float_spanish_format() -> None:
 def test_classify_deduction_sign_and_subcategory() -> None:
     rules = get_normalized_subcategory_rules()
     categoria, subcategoria, importe = classify_entry("TRIBUTACION I.R.P.F.", None, 100.0, rules)
-    assert categoria == "Devengo"
+    assert categoria == "Deducción"
     assert subcategoria == "Impuestos (IRPF)"
     assert importe == -100.0
 
@@ -40,15 +40,15 @@ def test_classify_deduction_sign_and_subcategory() -> None:
 def test_classify_negative_deduction_as_refund_positive() -> None:
     rules = get_normalized_subcategory_rules()
     categoria, subcategoria, importe = classify_entry("TAX REFUND", None, -100.0, rules)
-    assert categoria == "Devengo"
+    assert categoria == "Deducción"
     assert subcategoria == "Impuestos (Ajustes)"
     assert importe == 100.0
 
 
-def test_classify_negative_devengo_as_devengo() -> None:
+def test_classify_negative_devengo_as_deduccion() -> None:
     rules = get_normalized_subcategory_rules()
     categoria, subcategoria, importe = classify_entry("RETRIB. FLEXIBLE", -10.0, None, rules)
-    assert categoria == "Devengo"
+    assert categoria == "Ingreso"
     assert subcategoria == "Beneficio en Especie"
     assert importe == -10.0
 
@@ -59,7 +59,7 @@ def test_split_irpf_embedded_pct_creates_two_rows() -> None:
             "Año": 2025, "Mes": 12,
             "Concepto": "TRIBUTACION I.R.P.F.33,17",
             "Importe": -1779.24,
-            "Categoría": "Devengo",
+            "Categoría": "Deducción",
             "Subcategoría": "Impuestos (IRPF)",
         }
     ]
@@ -70,7 +70,7 @@ def test_split_irpf_embedded_pct_creates_two_rows() -> None:
     pct_row = next(r for r in result if r["Concepto"] == "% IRPF")
 
     assert deduction["Importe"] == -1779.24
-    assert deduction["Categoría"] == "Devengo"
+    assert deduction["Categoría"] == "Deducción"
 
     assert pct_row["Importe"] == 33.17
     assert pct_row["Categoría"] == "Impuesto IRPF"
@@ -85,7 +85,7 @@ def test_split_irpf_plain_concept_unchanged() -> None:
             "Año": 2025, "Mes": 12,
             "Concepto": "TRIBUTACION I.R.P.F.",
             "Importe": -1779.24,
-            "Categoría": "Devengo",
+            "Categoría": "Deducción",
             "Subcategoría": "Impuestos (IRPF)",
         }
     ]
