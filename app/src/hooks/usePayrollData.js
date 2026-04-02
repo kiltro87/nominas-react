@@ -86,6 +86,83 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
         sourceStatus: effectiveSourceStatus,
       };
     }
+    if (selectedYear === 'all') {
+      const sortedYears = [...availableYears].sort((a, b) => Number(a) - Number(b));
+      const allAnnual = sortedYears.map((y) => effectiveDataset.annualByYear[y].annual);
+      const totalBruto = allAnnual.reduce((s, a) => s + (a.bruto ?? 0), 0);
+      const totalMonths = sortedYears.reduce(
+        (s, y) => s + (effectiveDataset.annualByYear[y].history?.length ?? 0),
+        0,
+      );
+      const wAvg = (field) =>
+        totalBruto > 0
+          ? allAnnual.reduce((s, a) => s + (a[field] ?? 0) * (a.bruto ?? 0), 0) / totalBruto
+          : 0;
+      const totalNeto = allAnnual.reduce((s, a) => s + (a.neto ?? 0), 0);
+      const totalAhorro = allAnnual.reduce((s, a) => s + (a.ahorroTotal ?? 0), 0);
+
+      const annual = {
+        bruto: totalBruto,
+        neto: totalNeto,
+        irpfEfectivo: wAvg('irpfEfectivo'),
+        irpfAvgPct: wAvg('irpfAvgPct'),
+        ssAvgPct: wAvg('ssAvgPct'),
+        ahorroTotal: totalAhorro,
+        deferredAmount: allAnnual.reduce((s, a) => s + (a.deferredAmount ?? 0), 0),
+        totalImpuestos: allAnnual.reduce((s, a) => s + (a.totalImpuestos ?? 0), 0),
+        totalSS: allAnnual.reduce((s, a) => s + (a.totalSS ?? 0), 0),
+        totalDeducido: allAnnual.reduce((s, a) => s + (a.totalDeducido ?? 0), 0),
+        netoEfectivoAmount: totalNeto,
+        netoEfectivoPct: totalBruto > 0 ? (totalNeto / totalBruto) * 100 : 0,
+        ahorroDiferidoPct: totalBruto > 0 ? (totalAhorro / totalBruto) * 100 : 0,
+        pensionCompanyTotal: allAnnual.reduce((s, a) => s + (a.pensionCompanyTotal ?? 0), 0),
+        pensionEmployeeTotal: allAnnual.reduce((s, a) => s + (a.pensionEmployeeTotal ?? 0), 0),
+        esppYtd: allAnnual.reduce((s, a) => s + (a.esppYtd ?? 0), 0),
+        rsuYtd: allAnnual.reduce((s, a) => s + (a.rsuYtd ?? 0), 0),
+      };
+
+      const history = sortedYears.map((y) => {
+        const a = effectiveDataset.annualByYear[y].annual;
+        return {
+          month: y,
+          bruto: a.bruto ?? 0,
+          neto: a.neto ?? 0,
+          tax: (a.totalImpuestos ?? 0) + (a.totalSS ?? 0),
+        };
+      });
+
+      const avgNeto = totalMonths > 0 ? totalNeto / totalMonths : 0;
+      const avgBruto = totalMonths > 0 ? totalBruto / totalMonths : 0;
+
+      const selectedData = {
+        monthly: {
+          bruto: avgBruto,
+          neto: avgNeto,
+          netoLastMonth: null,
+          irpf: annual.irpfAvgPct,
+          totalIngresos: avgBruto,
+          ahorroFiscal: totalMonths > 0 ? totalAhorro / totalMonths : 0,
+          jubilacion: totalMonths > 0 ? (annual.pensionCompanyTotal + annual.pensionEmployeeTotal) / totalMonths : 0,
+          especie: 0,
+        },
+        annual,
+        history,
+      };
+
+      const estimatedTaxableBaseAll = Math.max(annual.bruto - annual.totalSS - annual.deferredAmount, 0);
+      return {
+        year: 'all',
+        availableYears,
+        selectedData,
+        annual,
+        irpf: calculateIrpfBreakdownMadrid(estimatedTaxableBaseAll),
+        history,
+        vestingSchedule: effectiveDataset.vestingSchedule,
+        trend: () => null,
+        sourceStatus: effectiveSourceStatus,
+      };
+    }
+
     const fallbackYear = availableYears[0];
     const year = effectiveDataset.annualByYear[selectedYear] ? selectedYear : fallbackYear;
     const selectedData = effectiveDataset.annualByYear[year];

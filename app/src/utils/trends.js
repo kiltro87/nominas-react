@@ -9,6 +9,7 @@
  * @returns {number|null} Percentage change, or null if comparison is not possible.
  */
 export const calcTrend = ({ selectedYear, annualByYear, field, section = 'annual' }) => {
+  if (selectedYear === 'all') return null;
   const previousYear = String(Number(selectedYear) - 1);
   const previousData = annualByYear[previousYear];
   const current = annualByYear[selectedYear]?.[section]?.[field];

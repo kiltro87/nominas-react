@@ -11,8 +11,6 @@ Tareas pendientes ordenadas por prioridad. Marcar con `[x]` cuando estén comple
 
 ## Frontend
 
-- [ ] **Añadir vista histórica (agregado de todos los años)**
-  Actualmente el selector de año filtra a un único ejercicio. Añadir una opción "Todos los años" que muestre métricas acumuladas o promediadas, y que el gráfico de evolución muestre el histórico completo sin filtro de año.
 
 ## Acciones e Inversiones
 

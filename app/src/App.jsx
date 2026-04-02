@@ -232,7 +232,7 @@ const App = () => {
   const { price: crmPrice } = useStockPrice('CRM');
   const { portfolio } = usePortfolioData(isAuthenticated && !useMockData, useMockData);
 
-  const previousYear = String(Number(year) - 1);
+  const previousYear = year === 'all' ? '' : String(Number(year) - 1);
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
   const esppYtd = annual.esppYtd ?? 0;
   const rsuYtd = annual.rsuYtd ?? 0;
@@ -522,6 +522,7 @@ const App = () => {
               className="font-semibold text-sm bg-transparent outline-none cursor-pointer"
               aria-label="Seleccionar año"
             >
+              <option value="all" className="text-slate-900">Todos los años</option>
               {availableYears.map((itemYear) => (
                 <option key={itemYear} value={itemYear} className="text-slate-900">
                   {itemYear}
@@ -582,10 +583,10 @@ const App = () => {
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
-                title="Sueldo Neto Mensual (Promedio)"
+                title={year === 'all' ? 'Neto Mensual (Promedio Histórico)' : 'Sueldo Neto Mensual (Promedio)'}
                 value={formatCurrency(selectedData.monthly.neto)}
-                subValue={`Ultimo mes: ${formatCurrency(selectedData.monthly.netoLastMonth ?? 0)}`}
-                helpText="Promedio del neto efectivo de los meses con datos del año seleccionado."
+                subValue={year === 'all' ? 'Media de todos los años' : `Ultimo mes: ${formatCurrency(selectedData.monthly.netoLastMonth ?? 0)}`}
+                helpText={year === 'all' ? 'Promedio mensual del neto efectivo sobre todos los años con datos.' : 'Promedio del neto efectivo de los meses con datos del año seleccionado.'}
                 icon={Wallet}
                 color="blue"
                 isPrivate={isPrivacyMode}
@@ -598,29 +599,29 @@ const App = () => {
                 trend={trend('irpfAvgPct')}
                 trendYear={previousYear}
                 inverseTrend
-                subValue="Media mensual del % IRPF"
-                helpText="Promedio de los conceptos de porcentaje IRPF detectados en las nóminas del año."
+                subValue={year === 'all' ? 'Media ponderada histórica' : 'Media mensual del % IRPF'}
+                helpText={year === 'all' ? 'Media ponderada por bruto del % IRPF a lo largo de todos los años.' : 'Promedio de los conceptos de porcentaje IRPF detectados en las nóminas del año.'}
                 icon={Percent}
                 color="indigo"
               />
               <StatCard
-                title="Ahorro y Capital"
+                title={year === 'all' ? 'Ahorro y Capital (Total)' : 'Ahorro y Capital'}
                 value={formatCurrency(annual.ahorroTotal)}
                 trend={trend('ahorroTotal')}
                 trendYear={previousYear}
                 subValue="Incluye ESPP, RSU y Jubilacion"
-                helpText="Suma del ahorro diferido: pensiones, ESPP neto, RSU y conceptos diferidos."
+                helpText={year === 'all' ? 'Suma total acumulada del ahorro diferido: pensiones, ESPP neto, RSU y conceptos diferidos.' : 'Suma del ahorro diferido: pensiones, ESPP neto, RSU y conceptos diferidos.'}
                 icon={PiggyBank}
                 color="emerald"
                 isPrivate={isPrivacyMode}
               />
               <StatCard
-                title="Salario Bruto YTD"
+                title={year === 'all' ? 'Salario Bruto Total' : 'Salario Bruto YTD'}
                 value={formatCurrency(annual.bruto)}
                 trend={trend('bruto')}
                 trendYear={previousYear}
-                subValue="Suma de salarios brutos del año"
-                helpText="Suma de los importes positivos clasificados como ingresos en el año."
+                subValue={year === 'all' ? 'Suma acumulada de todos los años' : 'Suma de salarios brutos del año'}
+                helpText={year === 'all' ? 'Suma total de los importes positivos clasificados como ingresos en todos los años.' : 'Suma de los importes positivos clasificados como ingresos en el año.'}
                 icon={Briefcase}
                 color="slate"
                 isPrivate={isPrivacyMode}
@@ -1064,7 +1065,7 @@ const App = () => {
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
               <h2 className="text-xl font-bold flex items-center gap-2 mb-8">
                 <BarChart3 className="text-blue-500" size={22} />
-                Evolucion Mensual: Bruto vs Neto vs Impuestos
+                {year === 'all' ? 'Evolucion Historica: Bruto vs Neto vs Impuestos' : 'Evolucion Mensual: Bruto vs Neto vs Impuestos'}
               </h2>
 
               <div className="mt-2 mb-10">
@@ -1130,7 +1131,7 @@ const App = () => {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-xs">
-                      <th className="pb-3 font-bold">Mes</th>
+                      <th className="pb-3 font-bold">{year === 'all' ? 'Año' : 'Mes'}</th>
                       <th className="pb-3 font-bold text-right">Salario Bruto</th>
                       <th className="pb-3 font-bold text-right">Impuestos (IRPF+SS)</th>
                       <th className="pb-3 font-bold text-right text-emerald-600">Neto Pagado</th>
@@ -1143,7 +1144,7 @@ const App = () => {
                         className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"
                       >
                         <td className="py-3 font-bold">
-                          {h.month} {year}
+                          {year === 'all' ? h.month : `${h.month} ${year}`}
                         </td>
                         <td className="py-3 text-right">
                           {isPrivacyMode ? '•••' : formatCurrency(h.bruto)}
