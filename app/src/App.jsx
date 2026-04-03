@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   Briefcase,
   Calendar,
+  CheckCircle2,
   ChevronDown,
   Clock,
   Download,
@@ -21,6 +23,7 @@ import {
   Table,
   TrendingDown,
   TrendingUp,
+  Upload,
   Wallet,
 } from 'lucide-react';
 import ProgressBar from './components/ProgressBar';
@@ -31,6 +34,8 @@ import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useStockPrice } from './hooks/useStockPrice';
 import { formatCurrency, formatPercent } from './utils/format';
 import { syncExchangeRatesFromBDE } from './services/currencyRepository';
+import { parseBenefitHistory } from './services/benefitHistoryParser';
+import { applyExchangeRates, saveStockTransactions, exportToCSV } from './services/stockTransactionsRepository';
 
 // ─── Portfolio chart (own state for hover) ───────────────────────────────────
 const CHART_SERIES = [
@@ -219,6 +224,12 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
   const [currencySync, setCurrencySync] = useState({ status: 'idle', message: '' });
+  const [excelUpload, setExcelUpload] = useState({
+    status: 'idle', // idle | parsing | lookback | saving | done | error
+    rows: [],
+    message: '',
+    savedCount: 0,
+  });
   const {
     isReady,
     isAuthenticated,
@@ -255,6 +266,62 @@ const App = () => {
     } catch (err) {
       setCurrencySync({ status: 'error', message: err.message });
     }
+  };
+
+  const handleExcelUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setExcelUpload({ status: 'parsing', rows: [], message: 'Leyendo Excel…', savedCount: 0 });
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseBenefitHistory(buffer);
+      const allRows = [...parsed.rsu, ...parsed.espp];
+
+      setExcelUpload((s) => ({ ...s, status: 'lookback', message: 'Buscando tipos de cambio BDE…', rows: allRows }));
+
+      const withRates = await applyExchangeRates(allRows);
+      const errorCount = withRates.filter((r) => r.status === 'ERROR').length;
+
+      setExcelUpload({
+        status: 'done',
+        rows: withRates,
+        message: errorCount
+          ? `${withRates.length} filas procesadas · ${errorCount} con error de cambio`
+          : `${withRates.length} filas procesadas · listas para guardar`,
+        savedCount: 0,
+      });
+    } catch (err) {
+      setExcelUpload({ status: 'error', rows: [], message: err.message, savedCount: 0 });
+    }
+  };
+
+  const handleSaveTransactions = async () => {
+    setExcelUpload((s) => ({ ...s, status: 'saving', message: 'Guardando en Supabase…' }));
+    try {
+      const count = await saveStockTransactions(excelUpload.rows);
+      setExcelUpload((s) => ({
+        ...s,
+        status: 'done',
+        message: `Guardado completado: ${count} operaciones en stock_transactions`,
+        savedCount: count,
+      }));
+    } catch (err) {
+      setExcelUpload((s) => ({ ...s, status: 'error', message: err.message }));
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!excelUpload.rows.length) return;
+    const blob = exportToCSV(excelUpload.rows);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'acciones_aeat.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const clearLoginMessages = () => {
@@ -933,6 +1000,122 @@ const App = () => {
                 <p className={`text-xs mt-3 font-medium ${currencySync.status === 'error' ? 'text-rose-500' : 'text-emerald-600'}`}>
                   {currencySync.message}
                 </p>
+              )}
+            </div>
+
+            {/* ── Excel upload card ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+              <h3 className="text-base font-bold flex items-center gap-2 mb-4">
+                <Upload size={18} className="text-indigo-500" /> Subir Historial de Acciones
+              </h3>
+
+              {/* Upload row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">BenefitHistory.xlsx</p>
+                  <p className="text-xs text-slate-400">Hojas: ESPP · Restricted Stock</p>
+                </div>
+                <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow cursor-pointer shrink-0 transition-all ${
+                  excelUpload.status === 'parsing' || excelUpload.status === 'lookback' || excelUpload.status === 'saving'
+                    ? 'bg-indigo-300 cursor-not-allowed text-white'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20'
+                }`}>
+                  {(excelUpload.status === 'parsing' || excelUpload.status === 'lookback' || excelUpload.status === 'saving')
+                    ? <Loader2 size={15} className="animate-spin" />
+                    : <Upload size={15} />}
+                  Subir Excel
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={handleExcelUpload}
+                    disabled={excelUpload.status === 'parsing' || excelUpload.status === 'lookback' || excelUpload.status === 'saving'}
+                  />
+                </label>
+              </div>
+
+              {/* Status message */}
+              {excelUpload.message && (
+                <p className={`text-xs mt-3 font-medium flex items-center gap-1 ${
+                  excelUpload.status === 'error' ? 'text-rose-500' : 'text-slate-500'
+                }`}>
+                  {excelUpload.status === 'error' && <AlertTriangle size={13} />}
+                  {excelUpload.status === 'done' && excelUpload.savedCount > 0 && <CheckCircle2 size={13} className="text-emerald-500" />}
+                  {excelUpload.message}
+                </p>
+              )}
+
+              {/* Preview table */}
+              {excelUpload.rows.length > 0 && (
+                <div className="mt-5">
+                  <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase">
+                        <tr>
+                          {['Plan','Tipo','Fecha','Grant','Qty Bruta','Qty Neta','Precio USD','Cambio BDE','Importe EUR','Estado'].map((h) => (
+                            <th key={h} className="px-3 py-2 text-left font-bold whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelUpload.rows.map((r, i) => (
+                          <tr
+                            key={i}
+                            title={r.error_msg ?? ''}
+                            className={`border-t border-slate-50 dark:border-slate-800/30 ${
+                              r.status === 'ERROR' ? 'bg-rose-50 dark:bg-rose-900/10 text-rose-700' : ''
+                            }`}
+                          >
+                            <td className="px-3 py-1.5 font-semibold">{r.plan_type}</td>
+                            <td className="px-3 py-1.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                r.op_type === 'AD' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>{r.op_type}</span>
+                            </td>
+                            <td className="px-3 py-1.5 whitespace-nowrap">{r.event_date}</td>
+                            <td className="px-3 py-1.5 text-slate-400">{r.grant_id ?? '—'}</td>
+                            <td className="px-3 py-1.5 text-right">{r.quantity_gross}</td>
+                            <td className="px-3 py-1.5 text-right">{r.quantity_net}</td>
+                            <td className="px-3 py-1.5 text-right">{r.price_usd != null ? r.price_usd.toFixed(4) : '—'}</td>
+                            <td className="px-3 py-1.5 text-right">{r.rate_used != null ? r.rate_used.toFixed(4) : '—'}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold">{r.amount_eur != null ? `€${r.amount_eur.toFixed(2)}` : '—'}</td>
+                            <td className="px-3 py-1.5">
+                              {r.status === 'ERROR'
+                                ? <span className="flex items-center gap-1 text-rose-600 font-bold"><AlertTriangle size={11} /> ERROR</span>
+                                : r.status === 'OK'
+                                  ? <span className="text-emerald-600 font-bold">OK</span>
+                                  : <span className="text-slate-400">{r.status}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={handleSaveTransactions}
+                      disabled={
+                        excelUpload.status === 'saving' ||
+                        excelUpload.savedCount > 0 ||
+                        excelUpload.rows.every((r) => r.status === 'ERROR')
+                      }
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold shadow shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      {excelUpload.status === 'saving'
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <CheckCircle2 size={14} />}
+                      Guardar en Base de Datos
+                    </button>
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                    >
+                      <Download size={14} /> Exportar CSV
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
