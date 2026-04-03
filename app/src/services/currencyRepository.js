@@ -22,17 +22,14 @@ export const syncExchangeRatesFromBDE = async () => {
 
   const json = await res.json();
 
-  const serie = json?.ListaSeries?.Serie ?? json?.listaSeries?.serie;
-  const rawDatos = serie?.Datos?.Dato ?? serie?.datos?.dato ?? [];
-  const datos = Array.isArray(rawDatos) ? rawDatos : [rawDatos];
+  // BDE returns an array: [{ serie, fechas: [...ISO strings], valores: [...numbers|null] }]
+  const serie = Array.isArray(json) ? json[0] : json;
+  const fechas = serie?.fechas ?? [];
+  const valores = serie?.valores ?? [];
 
-  const rows = datos
-    .filter((d) => d && (d.FECHA || d.fecha) && (d.VALOR ?? d.valor) != null)
-    .map((d) => ({
-      exchange_date: (d.FECHA || d.fecha).slice(0, 10),
-      usd_per_eur: parseFloat(String(d.VALOR ?? d.valor).replace(',', '.')),
-    }))
-    .filter((r) => !isNaN(r.usd_per_eur));
+  const rows = fechas
+    .map((fecha, i) => ({ exchange_date: fecha.slice(0, 10), usd_per_eur: valores[i] }))
+    .filter((r) => r.usd_per_eur != null && !isNaN(r.usd_per_eur));
 
   if (!rows.length) {
     throw new Error('La respuesta del BDE no contiene datos válidos. Comprueba la estructura del JSON.');
