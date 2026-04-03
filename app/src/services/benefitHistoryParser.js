@@ -1,18 +1,27 @@
 import * as XLSX from 'xlsx';
 
-/**
- * Normalizes a date value from the Excel to a YYYY-MM-DD string.
- * Handles: Excel serial numbers, MM/DD/YYYY, DD-MMM-YYYY strings.
- */
+// ─── Column index map (verified against real BenefitHistory.xlsx) ─────────────
+//
+// ESPP sheet:
+//   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty
+//   Event row:     [0]=Record Type, [19]=Date, [20]=Event Type, [21]=Qty
+//
+// Restricted Stock sheet:
+//   Grant row:           [0]=Record Type, [10]=Grant Number
+//   Vest Schedule row:   [0]=Record Type, [10]=Grant Number, [24]=Vest Period,
+//                        [25]=Vest Date,  [32]=Vested Qty,   [33]=Released Qty,
+//                        [37]=Withholding Amount
+//   Tax Withholding row: [0]=Record Type, [10]=Grant Number, [24]=Vest Period,
+//                        [38]=Country, [39]=Taxable Gain USD, [40]=Tax Rate, [41]=Withholding Amt
+
 const MONTH_ABBR = {
   JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
   JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
 };
 
 function normalizeDate(raw) {
-  if (!raw && raw !== 0) return null;
+  if (raw == null || raw === '') return null;
 
-  // Excel serial number
   if (typeof raw === 'number') {
     const d = XLSX.SSF.parse_date_code(raw);
     if (!d) return null;
@@ -37,25 +46,17 @@ function normalizeDate(raw) {
 
 function toNumber(raw) {
   if (raw == null || raw === '') return null;
-  const n = parseFloat(String(raw).replace(/[$,]/g, ''));
+  const n = parseFloat(String(raw).replace(/[$,%]/g, ''));
   return isNaN(n) ? null : n;
 }
 
 /**
- * Reads an ArrayBuffer and returns { rsu: [...], espp: [...] }.
- *
- * RSU rows (from "Restricted Stock" sheet):
- *   Source: 'Vest Schedule' rows matched with their 'Tax Withholding' rows.
- *   Fields: grant_id, event_date, quantity_gross, quantity_net, price_usd, op_type='AD', plan_type='RSU'
- *
- * ESPP rows (from "ESPP" sheet):
- *   Source: 'Event' sub-rows (PURCHASE → AD, SELL → TR).
- *   Fields: grant_id=null, event_date, quantity_gross, quantity_net, price_usd (purchase only), op_type, plan_type='ESPP'
+ * Reads a File's ArrayBuffer and returns { rsu: [...], espp: [...] }.
  */
 export function parseBenefitHistory(arrayBuffer) {
-  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: false });
   return {
-    rsu: parseRSU(wb),
+    rsu:  parseRSU(wb),
     espp: parseESPP(wb),
   };
 }
@@ -72,44 +73,44 @@ function parseRSU(wb) {
     blankrows: false,
   });
 
-  // Build a map of (grantNumber + vestPeriod) → taxableGain from Tax Withholding rows
+  // Build taxable-gain map keyed by grantNumber_vestPeriod
   const taxMap = {};
   for (const row of rows) {
     if (row[0] !== 'Tax Withholding') continue;
-    // ['Tax Withholding', grantNumber, vestPeriod, country, taxableGain, rate%, withholdingAmt]
-    const key = `${row[1]}_${row[2]}`;
-    taxMap[key] = toNumber(row[4]); // taxable gain in USD
+    const key = `${row[10]}_${row[24]}`;
+    taxMap[key] = toNumber(row[39]); // taxable gain in USD (idx 39)
   }
 
   const result = [];
   for (const row of rows) {
     if (row[0] !== 'Vest Schedule') continue;
-    // ['Vest Schedule', ?, grantNumber, vestPeriod, vestDate, ?, ?, vestedQty, releasedQty, ?, ?, ?, withholdingAmt]
-    const grantNumber = String(row[2]).trim();
-    const vestPeriod  = String(row[3]).trim();
-    const eventDate   = normalizeDate(row[4]);
-    const vestedQty   = toNumber(row[7]);
-    const releasedQty = toNumber(row[8]);
 
-    if (!eventDate || vestedQty == null || vestedQty === 0) continue;
+    const grantNumber = String(row[10]).trim();
+    const vestPeriod  = String(row[24]).trim();
+    const eventDate   = normalizeDate(row[25]);
+    const vestedQty   = toNumber(row[32]);
+    const releasedQty = toNumber(row[33]);
+
+    if (!eventDate || !vestedQty) continue;
 
     const taxableGain = taxMap[`${grantNumber}_${vestPeriod}`] ?? null;
-    const priceUsd    = taxableGain != null ? taxableGain / vestedQty : null;
+    const priceUsd    = taxableGain != null && vestedQty > 0
+      ? Math.round((taxableGain / vestedQty) * 10000) / 10000
+      : null;
 
     result.push({
-      grant_id:       grantNumber,
-      event_date:     eventDate,
-      quantity_gross: vestedQty,
-      quantity_net:   releasedQty ?? vestedQty,
-      price_usd:      priceUsd,
-      op_type:        'AD',
-      plan_type:      'RSU',
-      // filled later by lookback
-      rate_used:      null,
-      amount_eur:     null,
+      grant_id:         grantNumber,
+      event_date:       eventDate,
+      quantity_gross:   vestedQty,
+      quantity_net:     releasedQty ?? vestedQty,
+      price_usd:        priceUsd,
+      op_type:          'AD',
+      plan_type:        'RSU',
+      rate_used:        null,
+      amount_eur:       null,
       aeat_num_titulos: vestedQty,
-      status:         priceUsd == null ? 'WARN_NO_PRICE' : 'PENDING',
-      error_msg:      priceUsd == null ? 'Sin taxable gain para calcular precio' : null,
+      status:           priceUsd == null ? 'WARN_NO_PRICE' : 'PENDING',
+      error_msg:        priceUsd == null ? 'Sin taxable gain para calcular precio' : null,
     });
   }
 
@@ -135,48 +136,46 @@ function parseESPP(wb) {
     const recordType = String(row[0]).trim();
 
     if (recordType === 'Purchase') {
-      // ['Purchase', symbol, purchaseDate, purchasePrice, purchasedQty, ...]
-      currentPurchasePrice = toNumber(row[3]);
+      currentPurchasePrice = toNumber(row[3]); // Purchase Price at index 3
       continue;
     }
 
     if (recordType === 'Event') {
-      // ['Event', date, eventType, qty]
-      const eventType = String(row[2]).trim().toUpperCase();
-      const eventDate = normalizeDate(row[1]);
-      const qty       = toNumber(row[3]);
+      const eventDate = normalizeDate(row[19]); // Date at index 19
+      const eventType = String(row[20]).trim().toUpperCase(); // Event Type at index 20
+      const qty       = toNumber(row[21]); // Qty at index 21
 
       if (!eventDate || qty == null) continue;
 
       if (eventType === 'PURCHASE') {
         result.push({
-          grant_id:        null,
-          event_date:      eventDate,
-          quantity_gross:  qty,
-          quantity_net:    qty,
-          price_usd:       currentPurchasePrice,
-          op_type:         'AD',
-          plan_type:       'ESPP',
-          rate_used:       null,
-          amount_eur:      null,
+          grant_id:         null,
+          event_date:       eventDate,
+          quantity_gross:   qty,
+          quantity_net:     qty,
+          price_usd:        currentPurchasePrice,
+          op_type:          'AD',
+          plan_type:        'ESPP',
+          rate_used:        null,
+          amount_eur:       null,
           aeat_num_titulos: qty,
-          status:          currentPurchasePrice == null ? 'WARN_NO_PRICE' : 'PENDING',
-          error_msg:       currentPurchasePrice == null ? 'Sin precio de compra en fila Purchase' : null,
+          status:           currentPurchasePrice == null ? 'WARN_NO_PRICE' : 'PENDING',
+          error_msg:        currentPurchasePrice == null ? 'Sin precio en fila Purchase' : null,
         });
       } else if (eventType === 'SELL') {
         result.push({
-          grant_id:        null,
-          event_date:      eventDate,
-          quantity_gross:  qty,
-          quantity_net:    qty,
-          price_usd:       null,
-          op_type:         'TR',
-          plan_type:       'ESPP',
-          rate_used:       null,
-          amount_eur:      null,
+          grant_id:         null,
+          event_date:       eventDate,
+          quantity_gross:   qty,
+          quantity_net:     qty,
+          price_usd:        null,
+          op_type:          'TR',
+          plan_type:        'ESPP',
+          rate_used:        null,
+          amount_eur:       null,
           aeat_num_titulos: qty,
-          status:          'PENDING',
-          error_msg:       null,
+          status:           'PENDING',
+          error_msg:        null,
         });
       }
     }
