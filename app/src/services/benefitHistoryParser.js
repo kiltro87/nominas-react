@@ -1,18 +1,25 @@
 import * as XLSX from 'xlsx';
 
-// ─── Column index map (verified against real BenefitHistory.xlsx) ─────────────
+// ─── Column index map (verified against real BenefitHistory.xlsx from E*TRADE) ──
 //
-// ESPP sheet:
-//   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty, [12]=Purchase Date FMV
-//   Event row:     [0]=Record Type, [19]=Date, [20]=Event Type, [21]=Qty
+// Source: E*TRADE Benefits → My Account → Benefits → Benefit History → Export
 //
-// Restricted Stock sheet:
+// ESPP sheet (tab "ESPP"):
+//   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty,
+//                  [12]=Purchase Date FMV (used as price_usd for AEAT)
+//   Event row:     [0]=Record Type, [19]=Date, [20]=Event Type (PURCHASE|SELL), [21]=Qty
+//   Totals row:    ignored
+//
+// Restricted Stock sheet (tab "Restricted Stock"):
 //   Grant row:           [0]=Record Type, [10]=Grant Number
+//   Event row:           ignored (summarised by Vest Schedule rows)
 //   Vest Schedule row:   [0]=Record Type, [10]=Grant Number, [24]=Vest Period,
-//                        [25]=Vest Date,  [32]=Vested Qty,   [33]=Released Qty,
-//                        [37]=Withholding Amount
+//                        [25]=Vest Date,  [32]=Vested Qty (gross, base AEAT),
+//                        [33]=Released Qty, [35]=Sellable Qty (sold by broker for tax),
+//                        [36]=Blocked Qty (shares actually held after tax)
 //   Tax Withholding row: [0]=Record Type, [10]=Grant Number, [24]=Vest Period,
-//                        [38]=Country, [39]=Taxable Gain USD, [40]=Tax Rate, [41]=Withholding Amt
+//                        [38]=Country, [39]=Taxable Gain USD, [40]=Tax Rate%, [41]=Withholding Amt
+//   Totals row:          ignored
 
 const MONTH_ABBR = {
   JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
@@ -51,7 +58,19 @@ function toNumber(raw) {
 }
 
 /**
- * Reads a File's ArrayBuffer and returns { rsu: [...], espp: [...] }.
+ * Parses a BenefitHistory.xlsx file exported from E*TRADE Benefits
+ * (section: My Account → Benefits → Benefit History).
+ *
+ * Returns { rsu: [...], espp: [...] } where each row has the shape:
+ *   { grant_id, event_date, quantity_gross, quantity_net, price_usd,
+ *     op_type ('AD'|'TR'), plan_type ('RSU'|'ESPP'),
+ *     rate_used, amount_eur, aeat_num_titulos, status, error_msg }
+ *
+ * For RSU each vest event produces TWO rows:
+ *   1. AD  – gross acquisition (vested qty, used as AEAT base)
+ *   2. TR  – immediate tax-cover sale (sellable qty sold by broker to pay withholding tax)
+ *
+ * For ESPP each PURCHASE event produces one AD row and each SELL event one TR row.
  */
 export function parseBenefitHistory(arrayBuffer) {
   const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: false });
@@ -89,7 +108,8 @@ function parseRSU(wb) {
     const vestPeriod  = String(row[24]).trim();
     const eventDate   = normalizeDate(row[25]);
     const vestedQty   = toNumber(row[32]);
-    const releasedQty = toNumber(row[33]);
+    const blockedQty  = toNumber(row[36]); // shares actually kept after broker sells for taxes
+    const sellableQty = toNumber(row[35]); // shares sold by broker immediately to cover tax withholding
 
     if (!eventDate || !vestedQty) continue;
 
@@ -98,20 +118,36 @@ function parseRSU(wb) {
       ? Math.round((taxableGain / vestedQty) * 10000) / 10000
       : null;
 
+    const baseRow = {
+      grant_id:  grantNumber,
+      event_date: eventDate,
+      price_usd:  priceUsd,
+      plan_type:  'RSU',
+      rate_used:  null,
+      amount_eur: null,
+      status:     priceUsd == null ? 'WARN_NO_PRICE' : 'PENDING',
+      error_msg:  priceUsd == null ? 'Sin taxable gain para calcular precio' : null,
+    };
+
+    // AD – gross acquisition (AEAT base: full vested qty)
     result.push({
-      grant_id:         grantNumber,
-      event_date:       eventDate,
+      ...baseRow,
       quantity_gross:   vestedQty,
-      quantity_net:     releasedQty ?? vestedQty,
-      price_usd:        priceUsd,
+      quantity_net:     blockedQty ?? vestedQty,
       op_type:          'AD',
-      plan_type:        'RSU',
-      rate_used:        null,
-      amount_eur:       null,
       aeat_num_titulos: vestedQty,
-      status:           priceUsd == null ? 'WARN_NO_PRICE' : 'PENDING',
-      error_msg:        priceUsd == null ? 'Sin taxable gain para calcular precio' : null,
     });
+
+    // TR – immediate sale of tax-cover shares by E*TRADE broker (sellable qty)
+    if (sellableQty != null && sellableQty > 0) {
+      result.push({
+        ...baseRow,
+        quantity_gross:   sellableQty,
+        quantity_net:     sellableQty,
+        op_type:          'TR',
+        aeat_num_titulos: sellableQty,
+      });
+    }
   }
 
   return result;

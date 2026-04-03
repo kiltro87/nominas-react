@@ -1,3 +1,17 @@
+/**
+ * stockTransactionsRepository.js
+ *
+ * Gestiona la persistencia y cálculos de tipo de cambio para las operaciones
+ * de acciones extraídas del fichero BenefitHistory.xlsx de E*TRADE Benefits.
+ *
+ * Flujo:
+ *   1. benefitHistoryParser  → parsea el Excel y devuelve filas con status PENDING
+ *   2. applyExchangeRates()  → enriquece cada fila con rate_used y amount_eur
+ *                              usando un lookback de hasta 10 días hábiles sobre
+ *                              la tabla exchange_rates de Supabase (fuente: BDE)
+ *   3. saveStockTransactions() → hace un INSERT en stock_transactions
+ *   4. exportToCSV()          → genera un fichero CSV listo para AEAT
+ */
 import { supabase } from './supabaseClient';
 
 /**
