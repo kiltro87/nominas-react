@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 //
 // ESPP sheet (tab "ESPP"):
 //   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty,
-//                  [12]=Purchase Date FMV (used as price_usd for AEAT)
+//                  [11]=Grant Date FMV (used as price_usd for AEAT)
 //   Event row:     [0]=Record Type, [19]=Date, [20]=Event Type (PURCHASE|SELL), [21]=Qty
 //   Totals row:    ignored
 //
@@ -172,7 +172,7 @@ function parseESPP(wb) {
     const recordType = String(row[0]).trim();
 
     if (recordType === 'Purchase') {
-      currentPurchasePrice = toNumber(row[12]); // Purchase Date FMV at index 12 (fair market value)
+      currentPurchasePrice = toNumber(row[11]); // Grant Date FMV at index 11
       continue;
     }
 
