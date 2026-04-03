@@ -276,12 +276,21 @@ const App = () => {
     setExcelUpload({ status: 'parsing', rows: [], message: 'Leyendo Excel…', savedCount: 0 });
 
     try {
+      // Step 1: parse
       const buffer = await file.arrayBuffer();
       const parsed = parseBenefitHistory(buffer);
       const allRows = [...parsed.rsu, ...parsed.espp];
 
-      setExcelUpload((s) => ({ ...s, status: 'lookback', message: 'Buscando tipos de cambio BDE…', rows: allRows }));
+      // Step 2: auto-sync BDE exchange rates (UC10); warn but don't abort on failure
+      setExcelUpload((s) => ({ ...s, status: 'lookback', message: 'Sincronizando tipos de cambio BDE…', rows: allRows }));
+      try {
+        await syncExchangeRatesFromBDE();
+      } catch {
+        // non-blocking — continue with whatever rates are already in Supabase
+      }
 
+      // Step 3: apply lookback
+      setExcelUpload((s) => ({ ...s, message: 'Aplicando tipos de cambio…' }));
       const withRates = await applyExchangeRates(allRows);
       const errorCount = withRates.filter((r) => r.status === 'ERROR').length;
 
@@ -974,34 +983,6 @@ const App = () => {
 
         {activeTab === 'investments' && (
           <div className="space-y-8 animate-in fade-in duration-500">
-
-            {/* ── Gestión de datos ── */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
-              <h3 className="text-base font-bold flex items-center gap-2 mb-4">
-                <RefreshCw size={18} className="text-blue-500" /> Datos de Referencia
-              </h3>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">Tipos de Cambio USD/EUR</p>
-                  <p className="text-xs text-slate-400">Fuente: Banco de España · Últimos 36 meses</p>
-                </div>
-                <button
-                  onClick={handleSyncCurrency}
-                  disabled={currencySync.status === 'loading'}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold shadow shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shrink-0"
-                >
-                  {currencySync.status === 'loading'
-                    ? <Loader2 size={15} className="animate-spin" />
-                    : <RefreshCw size={15} />}
-                  Actualizar Divisas desde BDE
-                </button>
-              </div>
-              {currencySync.message && (
-                <p className={`text-xs mt-3 font-medium ${currencySync.status === 'error' ? 'text-rose-500' : 'text-emerald-600'}`}>
-                  {currencySync.message}
-                </p>
-              )}
-            </div>
 
             {/* ── Excel upload card ── */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
