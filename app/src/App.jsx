@@ -1052,42 +1052,54 @@ const App = () => {
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase">
                         <tr>
-                          {['Plan','Tipo','Fecha','Grant','Qty Bruta','Qty Neta','Precio USD','Cambio BDE','Importe EUR','Estado'].map((h) => (
+                          {['Plan','Tipo','Fecha','Grant','Cantidad','Acum. cartera','Precio USD','Cambio BDE','Importe EUR','Estado'].map((h) => (
                             <th key={h} className="px-3 py-2 text-left font-bold whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {excelUpload.rows.map((r, i) => (
-                          <tr
-                            key={i}
-                            title={r.error_msg ?? ''}
-                            className={`border-t border-slate-50 dark:border-slate-800/30 ${
-                              r.status === 'ERROR' ? 'bg-rose-50 dark:bg-rose-900/10 text-rose-700' : ''
-                            }`}
-                          >
-                            <td className="px-3 py-1.5 font-semibold">{r.plan_type}</td>
-                            <td className="px-3 py-1.5">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                r.op_type === 'AD' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                              }`}>{r.op_type}</span>
-                            </td>
-                            <td className="px-3 py-1.5 whitespace-nowrap">{r.event_date}</td>
-                            <td className="px-3 py-1.5 text-slate-400">{r.grant_id ?? '—'}</td>
-                            <td className="px-3 py-1.5 text-right">{r.quantity_gross}</td>
-                            <td className="px-3 py-1.5 text-right">{r.quantity_net}</td>
-                            <td className="px-3 py-1.5 text-right">{r.price_usd != null ? r.price_usd.toFixed(4) : '—'}</td>
-                            <td className="px-3 py-1.5 text-right">{r.rate_used != null ? r.rate_used.toFixed(4) : '—'}</td>
-                            <td className="px-3 py-1.5 text-right font-semibold">{r.amount_eur != null ? `€${r.amount_eur.toFixed(2)}` : '—'}</td>
-                            <td className="px-3 py-1.5">
-                              {r.status === 'ERROR'
-                                ? <span className="flex items-center gap-1 text-rose-600 font-bold"><AlertTriangle size={11} /> ERROR</span>
-                                : r.status === 'OK'
-                                  ? <span className="text-emerald-600 font-bold">OK</span>
-                                  : <span className="text-slate-400">{r.status}</span>}
-                            </td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          // Sort by date, compute cumulative quantity
+                          const sorted = [...excelUpload.rows].sort((a, b) => a.event_date.localeCompare(b.event_date));
+                          let cumulative = 0;
+                          return sorted.map((r, i) => {
+                            cumulative += r.op_type === 'AD' ? r.quantity_gross : -r.quantity_gross;
+                            return (
+                              <tr
+                                key={i}
+                                title={r.error_msg ?? ''}
+                                className={`border-t border-slate-50 dark:border-slate-800/30 ${
+                                  r.status === 'ERROR' ? 'bg-rose-50 dark:bg-rose-900/10 text-rose-700' : ''
+                                }`}
+                              >
+                                <td className="px-3 py-1.5 font-semibold">{r.plan_type}</td>
+                                <td className="px-3 py-1.5">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                    r.op_type === 'AD' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                  }`}>{r.op_type}</span>
+                                </td>
+                                <td className="px-3 py-1.5 whitespace-nowrap">{r.event_date}</td>
+                                <td className="px-3 py-1.5 text-slate-400">{r.grant_id ?? '—'}</td>
+                                <td className="px-3 py-1.5 text-right">{r.quantity_gross}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold">{cumulative}</td>
+                                <td className="px-3 py-1.5 text-right">
+                                  {r.price_usd != null ? `$${r.price_usd.toFixed(2)}` : '—'}
+                                </td>
+                                <td className="px-3 py-1.5 text-right">{r.rate_used != null ? r.rate_used.toFixed(4) : '—'}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold">
+                                  {r.amount_eur != null ? `${r.amount_eur.toFixed(2)} €` : '—'}
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  {r.status === 'ERROR'
+                                    ? <span className="flex items-center gap-1 text-rose-600 font-bold"><AlertTriangle size={11} /> ERROR</span>
+                                    : r.status === 'OK'
+                                      ? <span className="text-emerald-600 font-bold">OK</span>
+                                      : <span className="text-slate-400">{r.status}</span>}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>

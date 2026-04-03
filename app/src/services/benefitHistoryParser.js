@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 // ─── Column index map (verified against real BenefitHistory.xlsx) ─────────────
 //
 // ESPP sheet:
-//   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty
+//   Purchase row:  [0]=Record Type, [3]=Purchase Price, [4]=Purchased Qty, [12]=Purchase Date FMV
 //   Event row:     [0]=Record Type, [19]=Date, [20]=Event Type, [21]=Qty
 //
 // Restricted Stock sheet:
@@ -136,7 +136,7 @@ function parseESPP(wb) {
     const recordType = String(row[0]).trim();
 
     if (recordType === 'Purchase') {
-      currentPurchasePrice = toNumber(row[3]); // Purchase Price at index 3
+      currentPurchasePrice = toNumber(row[12]); // Purchase Date FMV at index 12 (fair market value)
       continue;
     }
 
