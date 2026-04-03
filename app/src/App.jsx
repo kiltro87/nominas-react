@@ -11,10 +11,12 @@ import {
   EyeOff,
   Info,
   Landmark,
+  Loader2,
   Percent,
   PieChart as PieChartIcon,
   PiggyBank,
   Receipt,
+  RefreshCw,
   ShieldCheck,
   Table,
   TrendingDown,
@@ -28,6 +30,7 @@ import { usePortfolioData } from './hooks/usePortfolioData';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useStockPrice } from './hooks/useStockPrice';
 import { formatCurrency, formatPercent } from './utils/format';
+import { syncExchangeRatesFromBDE } from './services/currencyRepository';
 
 // ─── Portfolio chart (own state for hover) ───────────────────────────────────
 const CHART_SERIES = [
@@ -215,6 +218,7 @@ const App = () => {
   const [useMockData, setUseMockData] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
+  const [currencySync, setCurrencySync] = useState({ status: 'idle', message: '' });
   const {
     isReady,
     isAuthenticated,
@@ -239,6 +243,19 @@ const App = () => {
   const pensionTotal = (annual.pensionCompanyTotal ?? 0) + (annual.pensionEmployeeTotal ?? 0);
   const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
   const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
+
+  const handleSyncCurrency = async () => {
+    setCurrencySync({ status: 'loading', message: '' });
+    try {
+      const count = await syncExchangeRatesFromBDE();
+      setCurrencySync({
+        status: 'success',
+        message: `Sincronización completada: ${count} registros añadidos/actualizados`,
+      });
+    } catch (err) {
+      setCurrencySync({ status: 'error', message: err.message });
+    }
+  };
 
   const clearLoginMessages = () => {
     setLoginError('');
@@ -890,6 +907,34 @@ const App = () => {
 
         {activeTab === 'investments' && (
           <div className="space-y-8 animate-in fade-in duration-500">
+
+            {/* ── Gestión de datos ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+              <h3 className="text-base font-bold flex items-center gap-2 mb-4">
+                <RefreshCw size={18} className="text-blue-500" /> Datos de Referencia
+              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Tipos de Cambio USD/EUR</p>
+                  <p className="text-xs text-slate-400">Fuente: Banco de España · Últimos 36 meses</p>
+                </div>
+                <button
+                  onClick={handleSyncCurrency}
+                  disabled={currencySync.status === 'loading'}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold shadow shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shrink-0"
+                >
+                  {currencySync.status === 'loading'
+                    ? <Loader2 size={15} className="animate-spin" />
+                    : <RefreshCw size={15} />}
+                  Actualizar Divisas desde BDE
+                </button>
+              </div>
+              {currencySync.message && (
+                <p className={`text-xs mt-3 font-medium ${currencySync.status === 'error' ? 'text-rose-500' : 'text-emerald-600'}`}>
+                  {currencySync.message}
+                </p>
+              )}
+            </div>
 
             {/* ── Summary cards ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
