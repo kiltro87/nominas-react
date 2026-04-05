@@ -858,13 +858,14 @@ const App = () => {
 
             {/* ── Sankey: distribución mensual de nómina ── */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                 <div>
                   <h2 className="text-xl font-bold flex items-center gap-2">
                     <PieChartIcon className="text-emerald-500" size={22} /> Distribución de la Nómina Mensual
                   </h2>
                   <p className="text-slate-400 text-sm mt-0.5">
-                    Cómo se reparte el bruto mensual medio entre neto, impuestos y ahorro
+                    Del bruto mensual medio a Compensación (neto + ahorro) y Retenciones (IRPF + SS).
+                    Datos: {year === 'all' ? `media histórica (${history.length} meses)` : `media mensual ${year} (${history.length} nóminas)`}.
                   </p>
                 </div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">
