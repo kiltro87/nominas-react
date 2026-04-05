@@ -64,24 +64,19 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
   );
 }
 
-function CustomLink({ sourceX, sourceY, targetX, targetY, linkWidth, payload }) {
-  if (!payload?.target?.name || !linkWidth) return null;
-  const color = NODE_COLORS[payload.target.name] ?? '#94a3b8';
-  const midX  = sourceX + (targetX - sourceX) * 0.5;
+// recharts passes sourceY/targetY as the CENTER of the band (not top edge),
+// and uses a stroked bezier path (not a filled polygon). sourceControlX /
+// targetControlX are the bezier control points computed internally by recharts.
+function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload }) {
+  if (!linkWidth) return null;
+  const color = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
   return (
     <path
-      d={`
-        M${sourceX},${sourceY}
-        C${midX},${sourceY} ${midX},${targetY} ${targetX},${targetY}
-        L${targetX},${targetY + linkWidth}
-        C${midX},${targetY + linkWidth} ${midX},${sourceY + linkWidth} ${sourceX},${sourceY + linkWidth}
-        Z
-      `}
-      fill={color}
-      fillOpacity={0.25}
+      d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+      strokeWidth={linkWidth}
       stroke={color}
-      strokeOpacity={0.08}
-      strokeWidth={0.5}
+      strokeOpacity={0.35}
+      fill="none"
     />
   );
 }
