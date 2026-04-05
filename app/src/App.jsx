@@ -261,10 +261,11 @@ const App = () => {
 
   const previousYear = year === 'all' ? '' : String(Number(year) - 1);
 
-  // Reset month selector whenever the selected year changes
+  // Reset month selector and any open inline editor whenever the selected year changes
   const handleYearChange = (newYear) => {
     setSelectedYear(newYear);
     setSelectedNominaMonth(null);
+    setEditingConcept(null);
   };
 
   // Save inline concept edit: update nominas row + upsert concept_categories

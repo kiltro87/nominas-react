@@ -24,6 +24,8 @@ export const fetchAllYearConcepts = async (year) => {
 
   const byMonth = {};
   for (const row of data) {
+    // Skip rows with invalid or unrecognised categoría values (e.g. 'Impuesto')
+    if (row['categoría'] !== 'Ingreso' && row['categoría'] !== 'Deducción') continue;
     if (!byMonth[row.mes]) byMonth[row.mes] = { ingresos: [], deducciones: [] };
     if (row['categoría'] === 'Ingreso') {
       byMonth[row.mes].ingresos.push(row);
