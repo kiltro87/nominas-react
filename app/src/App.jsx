@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -56,11 +56,6 @@ import { parseBenefitHistory } from './services/benefitHistoryParser';
 import { applyExchangeRates, saveStockTransactions, exportToCSV } from './services/stockTransactionsRepository';
 
 // ─── Portfolio chart (own state for hover) ───────────────────────────────────
-const CHART_SERIES = [
-  { field: 'cumulative_qty', stroke: '#3b82f6', label: 'Cartera neta',    width: '1.2', dash: null },
-  { field: 'rsu_running',    stroke: '#6366f1', label: 'RSU acumuladas',  width: '0.8', dash: '2,1' },
-  { field: 'espp_running',   stroke: '#10b981', label: 'ESPP acumuladas', width: '0.8', dash: '2,1' },
-];
 
 const resolvePortfolioType = (t) => {
   const tt = (t.transaction_type || '').toLowerCase();
@@ -74,13 +69,9 @@ const resolvePortfolioType = (t) => {
 };
 
 const PortfolioChart = ({ transactions }) => {
-  const [hoverIdx, setHoverIdx] = useState(null);
-  const svgRef = useRef(null);
-
   const pts = transactions.filter((t) => t.cumulative_qty != null);
   if (pts.length < 2) return <p className="text-sm text-slate-400 py-4">Datos insuficientes para el gráfico.</p>;
 
-  // Running accumulation per type (functional to satisfy immutability lint rule)
   const enriched = pts.reduce((acc, t) => {
     const prev = acc[acc.length - 1];
     const type = resolvePortfolioType(t);
@@ -90,141 +81,62 @@ const PortfolioChart = ({ transactions }) => {
     return [...acc, { ...t, rsu_running: rsuR, espp_running: esppR }];
   }, []);
 
-  const maxVal = Math.max(...enriched.map((t) => Math.max(t.cumulative_qty ?? 0, t.rsu_running, t.espp_running)), 1);
-
-  // Time-proportional X axis
-  const timestamps = enriched.map((t) => {
-    const s = t.aeat_fecha || t.operation_date;
-    return s ? new Date(s).getTime() : null;
+  const chartData = enriched.map((t) => {
+    const dateStr = t.aeat_fecha || t.operation_date;
+    return {
+      ts: dateStr ? new Date(dateStr).getTime() : null,
+      date: dateStr || '—',
+      carteraNeta: t.cumulative_qty ?? 0,
+      rsuAcum: t.rsu_running,
+      esppAcum: t.espp_running,
+    };
   });
-  const validTs = timestamps.filter(Boolean);
-  const minDate = Math.min(...validTs);
-  const maxDate = Math.max(...validTs);
-  const dateRange = maxDate - minDate || 1;
-
-  const L = 16; const R = 97; const T = 3; const B = 52;
-  const xOf = (i) => {
-    const ts = timestamps[i];
-    return ts != null ? L + ((ts - minDate) / dateRange) * (R - L) : L + (i / (enriched.length - 1)) * (R - L);
-  };
-  const yOf = (v) => B - ((v / maxVal) * (B - T));
-  const pointsOf = (field) => enriched.map((t, i) => `${xOf(i).toFixed(1)},${yOf(t[field] ?? 0).toFixed(1)}`).join(' ');
-
-  // Y-axis ticks
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ value: Math.round(maxVal * f), y: yOf(maxVal * f) }));
-
-  // X-axis year labels (position based on Jan 1 of each year)
-  const yearSet = new Set(validTs.map((ts) => new Date(ts).getFullYear()));
-  const yearLabels = [...yearSet]
-    .sort()
-    .map((yr) => ({ yr: String(yr), x: L + ((new Date(yr, 0, 1).getTime() - minDate) / dateRange) * (R - L) }))
-    .filter(({ x }) => x >= L && x <= R)
-    .filter((lbl, i, arr) => i === 0 || lbl.x - arr[i - 1].x > 7);
-
-  // Mouse hover
-  const handleMouseMove = (e) => {
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const mouseXVB = ((e.clientX - rect.left) / rect.width) * 100;
-    let nearest = 0;
-    let minDist = Infinity;
-    enriched.forEach((_, i) => { const d = Math.abs(xOf(i) - mouseXVB); if (d < minDist) { minDist = d; nearest = i; } });
-    setHoverIdx(nearest);
-  };
-
-  const hoverPt   = hoverIdx != null ? enriched[hoverIdx] : null;
-  const hoverX    = hoverIdx != null ? xOf(hoverIdx) : null;
-  const tipOnLeft = hoverX != null && hoverX > (L + R) / 2;
 
   return (
-    <>
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 mb-4">
-        {CHART_SERIES.map(({ stroke, label, dash }) => (
-          <span key={label} className="flex items-center gap-2">
-            <svg width="20" height="8">
-              <line x1="0" y1="4" x2="20" y2="4" stroke={stroke} strokeWidth={dash ? 1.5 : 2} strokeDasharray={dash ?? undefined} />
-            </svg>
-            {label}
-          </span>
-        ))}
-      </div>
-
-      <svg
-        ref={svgRef}
-        viewBox="0 0 100 62"
-        className="w-full flex-1"
-        style={{ cursor: 'crosshair' }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverIdx(null)}
-      >
-        {/* Y grid + labels */}
-        {yTicks.map(({ value, y }) => (
-          <g key={`yt-${value}`}>
-            <line x1={L} y1={y} x2={R} y2={y} stroke="#f1f5f9" strokeWidth="0.4" />
-            <text x={L - 1} y={y + 0.9} textAnchor="end" fontSize="2.4" fill="#94a3b8">{value}</text>
-          </g>
-        ))}
-        {/* Axes */}
-        <line x1={L} y1={T} x2={L}  y2={B} stroke="#e2e8f0" strokeWidth="0.4" />
-        <line x1={L} y1={B} x2={R}  y2={B} stroke="#e2e8f0" strokeWidth="0.4" />
-        <text transform={`rotate(-90) translate(-${(T + B) / 2}, ${L - 9})`} textAnchor="middle" fontSize="2.4" fill="#94a3b8">Acciones</text>
-        {/* X labels */}
-        {yearLabels.map(({ yr, x }) => (
-          <text key={`xl-${yr}`} x={x} y={B + 4} textAnchor="middle" fontSize="2.4" fill="#94a3b8">{yr}</text>
-        ))}
-        {/* Series lines */}
-        {CHART_SERIES.map(({ field, stroke, width, dash }) => (
-          <polyline
-            key={field}
-            fill="none"
-            stroke={stroke}
-            strokeWidth={width}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            strokeDasharray={dash ?? undefined}
-            points={pointsOf(field)}
-          />
-        ))}
-        {/* End-of-series dots */}
-        {CHART_SERIES.map(({ field, stroke }) => {
-          const last = enriched[enriched.length - 1];
-          return <circle key={`d-${field}`} cx={xOf(enriched.length - 1)} cy={yOf(last[field] ?? 0)} r="1.3" fill={stroke} />;
-        })}
-        {/* Hover crosshair + tooltip */}
-        {hoverPt && hoverX != null && (
-          <g pointerEvents="none">
-            <line x1={hoverX} y1={T} x2={hoverX} y2={B} stroke="#94a3b8" strokeWidth="0.3" strokeDasharray="1,0.5" />
-            {CHART_SERIES.map(({ field, stroke }) => (
-              <circle key={`h-${field}`} cx={hoverX} cy={yOf(hoverPt[field] ?? 0)} r="1.5" fill="white" stroke={stroke} strokeWidth="0.7" />
-            ))}
-            {(() => {
-              const tx = tipOnLeft ? hoverX - 29 : hoverX + 2;
-              const ty = T + 1;
-              const date = hoverPt.aeat_fecha || hoverPt.operation_date || '—';
-              return (
-                <g>
-                  <rect x={tx} y={ty} width="27" height="18" rx="1.5" fill="white" stroke="#e2e8f0" strokeWidth="0.5" />
-                  <text x={tx + 1.5} y={ty + 3.8} fontSize="2.3" fill="#64748b" fontWeight="600">{date}</text>
-                  {[
-                    { label: `Total: ${hoverPt.cumulative_qty ?? 0}`, color: '#3b82f6', dy: 7 },
-                    { label: `RSU: ${hoverPt.rsu_running}`,           color: '#6366f1', dy: 11 },
-                    { label: `ESPP: ${hoverPt.espp_running}`,         color: '#10b981', dy: 15 },
-                  ].map(({ label, color, dy }) => (
-                    <g key={label}>
-                      <circle cx={tx + 2.5} cy={ty + dy - 0.5} r="1" fill={color} />
-                      <text x={tx + 5} y={ty + dy} fontSize="2.1" fill="#475569">{label}</text>
-                    </g>
-                  ))}
-                </g>
-              );
-            })()}
-          </g>
-        )}
-        {/* Transparent hit-test area */}
-        <rect x={L} y={T} width={R - L} height={B - T} fill="transparent" />
-      </svg>
-    </>
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 8, left: 16 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+        <XAxis
+          dataKey="ts"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          tickFormatter={(ts) => ts ? new Date(ts).getFullYear().toString() : ''}
+          tick={{ fontSize: 11, fill: '#94a3b8' }}
+          tickLine={false}
+          axisLine={{ stroke: '#e2e8f0' }}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: '#94a3b8' }}
+          tickLine={false}
+          axisLine={false}
+          width={48}
+          label={{ value: 'Acciones', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#94a3b8', offset: -4 }}
+        />
+        <Tooltip
+          labelFormatter={(ts) => ts ? new Date(ts).toLocaleDateString('es-ES') : '—'}
+          formatter={(value, name) => {
+            const labels = { carteraNeta: 'Cartera neta', rsuAcum: 'RSU acumuladas', esppAcum: 'ESPP acumuladas' };
+            return [Number(value).toFixed(0) + ' acc.', labels[name] ?? name];
+          }}
+          contentStyle={{
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            fontSize: '12px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          }}
+        />
+        <Legend
+          formatter={(value) => {
+            const labels = { carteraNeta: 'Cartera neta', rsuAcum: 'RSU acumuladas', esppAcum: 'ESPP acumuladas' };
+            return <span style={{ fontSize: 12, color: '#64748b' }}>{labels[value] ?? value}</span>;
+          }}
+        />
+        <Line type="monotone" dataKey="carteraNeta" stroke="#3b82f6" strokeWidth={2}   dot={false} activeDot={{ r: 4 }} />
+        <Line type="monotone" dataKey="rsuAcum"     stroke="#6366f1" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
+        <Line type="monotone" dataKey="esppAcum"    stroke="#10b981" strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
+      </LineChart>
+    </ResponsiveContainer>
   );
 };
 
