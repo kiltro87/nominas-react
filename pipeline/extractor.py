@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import unicodedata
 from functools import lru_cache
@@ -121,25 +122,74 @@ def normalize_key(s: str) -> str:
     return re.sub(r"\s+", " ", ascii_only).strip()
 
 
-def load_concept_rules() -> List[Tuple[str, str, str]]:
-    config_path = Path(__file__).with_name("Categorias de conceptos.json")
-    if not config_path.exists():
-        return DEFAULT_CONCEPT_RULES
+def _load_concept_rules_from_supabase() -> Optional[List[Tuple[str, str, str]]]:
+    """
+    Loads concept classification rules from the Supabase `concept_categories` table.
+
+    Requires SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_KEY) environment
+    variables. Returns None if the dependency is missing or the connection fails,
+    so the caller can fall back to the local JSON file.
+
+    The `supabase-py` package is an optional dependency:
+        pip install supabase
+    """
+    url = os.environ.get("SUPABASE_URL", "").strip()
+    key = os.environ.get("SUPABASE_SERVICE_KEY", os.environ.get("SUPABASE_KEY", "")).strip()
+    if not url or not key:
+        return None
 
     try:
-        payload = json.loads(config_path.read_text(encoding="utf-8"))
-        rules: List[Tuple[str, str, str]] = []
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            concepto = str(item.get("concepto", "")).strip()
-            categoria = str(item.get("categoria", "")).strip()
-            subcategoria = str(item.get("subcategoria", "")).strip()
-            if concepto and categoria and subcategoria:
-                rules.append((concepto, categoria, subcategoria))
-        return rules or DEFAULT_CONCEPT_RULES
-    except (json.JSONDecodeError, OSError):
-        return DEFAULT_CONCEPT_RULES
+        from supabase import create_client  # type: ignore
+    except ImportError:
+        return None
+
+    try:
+        client = create_client(url, key)
+        response = client.table("concept_categories").select("concepto,categoria,subcategoria").execute()
+        rows = response.data or []
+        rules: List[Tuple[str, str, str]] = [
+            (r["concepto"], r["categoria"], r["subcategoria"])
+            for r in rows
+            if r.get("concepto") and r.get("categoria") and r.get("subcategoria")
+        ]
+        return rules or None
+    except Exception:
+        return None
+
+
+def load_concept_rules() -> List[Tuple[str, str, str]]:
+    """
+    Returns classification rules using a three-tier priority:
+      1. Supabase `concept_categories` table  (requires env vars + supabase-py)
+      2. Local `Categorias de conceptos.json` file (offline fallback)
+      3. Hardcoded DEFAULT_CONCEPT_RULES      (last resort)
+    """
+    # Tier 1: Supabase
+    supabase_rules = _load_concept_rules_from_supabase()
+    if supabase_rules:
+        return supabase_rules
+
+    # Tier 2: local JSON
+    config_path = Path(__file__).with_name("Categorias de conceptos.json")
+    if config_path.exists():
+        try:
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+            rules: List[Tuple[str, str, str]] = []
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                concepto = str(item.get("concepto", "")).strip()
+                categoria = str(item.get("categoria", "")).strip()
+                subcategoria = str(item.get("subcategoria", "")).strip()
+                if concepto and categoria and subcategoria:
+                    rules.append((concepto, categoria, subcategoria))
+            if rules:
+                return rules
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Tier 3: hardcoded defaults
+    return DEFAULT_CONCEPT_RULES
 
 
 def get_concept_rules_version() -> str:
@@ -316,12 +366,16 @@ def _extract_liquido(text: str) -> Optional[float]:
 
 
 def _match_classification(concept: str, rules: Tuple[Tuple[str, str, str], ...]) -> Tuple[Optional[str], str]:
-    """Returns (categoria_from_json | None, subcategoria) for the given concept."""
+    """Returns (categoria | None, subcategoria | '') for the given concept.
+
+    Returns (None, '') when no rule matches — callers treat this as
+    'Sin categorizar' and save the raw concept name for later user editing.
+    """
     key = normalize_key(concept)
     for token, categoria, subcategoria in rules:
         if token in key:
             return categoria, subcategoria
-    return None, "No clasificado"
+    return None, ""
 
 
 _IRPF_EMBEDDED_RE = re.compile(r"TRIBUTACION\s+I\.R\.P\.F\.(\d+)[,\.](\d+)", re.IGNORECASE)
@@ -360,22 +414,29 @@ def split_irpf_embedded_pct_rows(sheet_rows: List[Dict[str, Any]]) -> List[Dict[
 def classify_entry(
     concept: str, dev: Optional[float], ded: Optional[float], rules: Tuple[Tuple[str, str, str], ...]
 ) -> Tuple[str, str, float]:
+    """Classify a payroll line item into (categoria, subcategoria, importe).
+
+    When no rule matches (subcategoria == ''), categoria is inferred from the
+    column (devengos → 'Ingreso', deducciones → 'Deducción') but subcategoria
+    is left empty so the UI can flag the row for manual review and editing.
+    """
     json_categoria, subcategoria = _match_classification(concept, rules)
+    unmatched = subcategoria == ""  # True when no rule matched
 
     if ded is not None:
         # DEDUCCIONES puede traer importes negativos (refund): deben mantener signo.
         # Ejemplo: ded=+100 -> importe=-100, ded=-100 -> importe=+100.
         categoria = json_categoria if json_categoria else "Deducción"
-        return categoria, subcategoria, -ded
+        return categoria, subcategoria if not unmatched else "", -ded
 
     if dev is not None:
         if dev < 0:
             categoria = json_categoria if json_categoria else "Deducción"
-            return categoria, subcategoria, dev
+            return categoria, subcategoria if not unmatched else "", dev
         categoria = json_categoria if json_categoria else "Ingreso"
-        return categoria, subcategoria, dev
+        return categoria, subcategoria if not unmatched else "", dev
 
-    return json_categoria if json_categoria else "Deducción", "No clasificado", 0.0
+    return json_categoria if json_categoria else "", "", 0.0
 
 
 def extract_payroll(pdf_path: str) -> Dict[str, Any]:

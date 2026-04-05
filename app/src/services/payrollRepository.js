@@ -16,7 +16,7 @@ export const fetchAllYearConcepts = async (year) => {
 
   const { data, error } = await supabase
     .from('nominas')
-    .select('concepto, "categoría", "subcategoría", importe, mes')
+    .select('id, concepto, "categoría", "subcategoría", importe, mes')
     .eq('anio', Number(year))
     .order('mes', { ascending: true });
 
@@ -94,4 +94,39 @@ export const fetchPayrollDataFromSupabase = async () => {
     throw new Error('No rows found in payroll_metrics_mv. La tabla nominas puede estar vacía.');
   }
   return normalizePayrollMetricsPayload(data);
+};
+
+/**
+ * Updates a single nominas row's concepto, categoría, and subcategoría.
+ * Called when the user edits an unrecognized (or incorrectly classified) concept
+ * in the Mi Nómina concept tables.
+ *
+ * @param {number} id - Primary key of the nominas row.
+ * @param {{ concepto: string, categoria: string, subcategoria: string }} fields
+ * @returns {Promise<void>}
+ */
+export const updateNominaConcept = async (id, { concepto, categoria, subcategoria }) => {
+  if (!hasSupabaseConfig || !supabase) throw new Error('Supabase no configurado');
+  const { error } = await supabase
+    .from('nominas')
+    .update({ concepto, 'categoría': categoria, 'subcategoría': subcategoria })
+    .eq('id', id);
+  if (error) throw error;
+};
+
+/**
+ * Inserts or updates a concept_categories row so future PDF imports classify
+ * this concept correctly without user intervention.
+ *
+ * Uses ON CONFLICT (concepto) DO UPDATE so it is safe to call repeatedly.
+ *
+ * @param {{ concepto: string, categoria: string, subcategoria: string }} fields
+ * @returns {Promise<void>}
+ */
+export const upsertConceptCategory = async ({ concepto, categoria, subcategoria }) => {
+  if (!hasSupabaseConfig || !supabase) throw new Error('Supabase no configurado');
+  const { error } = await supabase
+    .from('concept_categories')
+    .upsert({ concepto, categoria, subcategoria }, { onConflict: 'concepto' });
+  if (error) throw error;
 };

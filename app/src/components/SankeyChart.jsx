@@ -54,24 +54,28 @@ const RET_NODES = [
 /**
  * Three-column Sankey: BRUTO → (Compensación / Retenciones) → detail nodes.
  *
- * Data source: annual totals from payroll_metrics_mv divided by the number of
- * months in the selected period — i.e., monthly averages.
+ * Accepts two data modes:
+ *  - `monthData` prop: pre-computed values from a single month's concepts
+ *    (used by Mi Nómina tab for exact month data via computeSankeyFromConcepts).
+ *  - `annual + history` props: annual totals divided by the number of months
+ *    (used by Visión General tab for monthly averages).
  *
- * @param {{ annual: object, history: Array, isPrivate: boolean }} props
+ * @param {{ annual?: object, history?: Array, monthData?: object, isPrivate: boolean }} props
  */
-export default function SankeyChart({ annual, history, isPrivate = false }) {
+export default function SankeyChart({ annual, history, monthData, isPrivate = false }) {
   const [hovered, setHovered] = useState(null);
 
+  // If monthData is provided, use it directly; otherwise compute monthly average from annual totals
   const n = history?.length || 1;
   const mo = (v) => (v ?? 0) / n;
 
-  const bruto   = mo(annual.bruto);
-  const neto    = mo(annual.neto);
-  const irpf    = mo(annual.totalImpuestos);
-  const ss      = mo(annual.totalSS);
-  const pension = mo((annual.pensionCompanyTotal ?? 0) + (annual.pensionEmployeeTotal ?? 0));
-  const esppRsu = mo((annual.esppYtd ?? 0) + (annual.rsuYtd ?? 0));
-  const flex    = Math.max(0, mo(annual.ahorroTotal ?? 0) - pension - esppRsu);
+  const bruto   = monthData ? monthData.bruto   : mo(annual?.bruto);
+  const neto    = monthData ? monthData.neto    : mo(annual?.neto);
+  const irpf    = monthData ? monthData.irpf    : mo(annual?.totalImpuestos);
+  const ss      = monthData ? monthData.ss      : mo(annual?.totalSS);
+  const pension = monthData ? monthData.pension : mo((annual?.pensionCompanyTotal ?? 0) + (annual?.pensionEmployeeTotal ?? 0));
+  const esppRsu = monthData ? monthData.esppRsu : mo((annual?.esppYtd ?? 0) + (annual?.rsuYtd ?? 0));
+  const flex    = monthData ? monthData.flex    : Math.max(0, mo(annual?.ahorroTotal ?? 0) - pension - esppRsu);
 
   if (!bruto) return <p className="text-sm text-slate-400 py-8 text-center">Sin datos disponibles.</p>;
 
@@ -149,7 +153,7 @@ export default function SankeyChart({ annual, history, isPrivate = false }) {
     ) : null;
 
   return (
-    <div style={{ aspectRatio: `${W}/${H}` }} className="w-full">
+    <div style={{ aspectRatio: `${W}/${H}`, maxWidth: '860px' }} className="w-full mx-auto">
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="w-full h-full"

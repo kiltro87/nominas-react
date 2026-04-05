@@ -17,6 +17,7 @@ import {
   Landmark,
   Loader2,
   LogOut,
+  Pencil,
   Percent,
   PieChart as PieChartIcon,
   PiggyBank,
@@ -28,15 +29,18 @@ import {
   TrendingUp,
   Upload,
   Wallet,
+  X,
 } from 'lucide-react';
 import ProgressBar from './components/ProgressBar';
 import SankeyChart from './components/SankeyChart';
+import { computeSankeyFromConcepts } from './utils/sankeyMonthData';
 import StatCard from './components/StatCard';
 import { usePayrollData } from './hooks/usePayrollData';
 import { usePortfolioData } from './hooks/usePortfolioData';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useStockPrice } from './hooks/useStockPrice';
 import { formatCurrency, formatPercent } from './utils/format';
+import { updateNominaConcept, upsertConceptCategory } from './services/payrollRepository';
 import { syncExchangeRatesFromBDE } from './services/currencyRepository';
 import { parseBenefitHistory } from './services/benefitHistoryParser';
 import { applyExchangeRates, saveStockTransactions, exportToCSV } from './services/stockTransactionsRepository';
@@ -228,6 +232,10 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
   const [selectedNominaMonth, setSelectedNominaMonth] = useState(null); // null = latest
+  const [evolHovered, setEvolHovered] = useState(null); // { i, h, x } for evolution chart tooltip
+  // Inline concept editor state: null = closed; otherwise { id, concepto, categoria, subcategoria }
+  const [editingConcept, setEditingConcept] = useState(null);
+  const [conceptSaving, setConceptSaving] = useState(false);
   const [excelUpload, setExcelUpload] = useState({
     status: 'idle', // idle | parsing | lookback | saving | done | error
     rows: [],
@@ -259,6 +267,31 @@ const App = () => {
     setSelectedNominaMonth(null);
   };
 
+  // Save inline concept edit: update nominas row + upsert concept_categories
+  const handleSaveConcept = async () => {
+    if (!editingConcept) return;
+    setConceptSaving(true);
+    try {
+      await updateNominaConcept(editingConcept.id, {
+        concepto:    editingConcept.concepto,
+        categoria:   editingConcept.categoria,
+        subcategoria: editingConcept.subcategoria,
+      });
+      await upsertConceptCategory({
+        concepto:    editingConcept.concepto,
+        categoria:   editingConcept.categoria,
+        subcategoria: editingConcept.subcategoria,
+      });
+      setEditingConcept(null);
+      // Trigger a refetch by bumping the year (reset + reselect)
+      handleYearChange(selectedYear);
+    } catch {
+      // Errors surface via sourceStatus; don't crash the UI
+    } finally {
+      setConceptSaving(false);
+    }
+  };
+
   // Derive the currently displayed month for Mi Nómina tab
   const { byMonth: conceptsByMonth = {}, availableMonths: availableConceptMonths = [] } = conceptsByYear;
   const latestConceptMonth = availableConceptMonths[availableConceptMonths.length - 1] ?? null;
@@ -266,6 +299,14 @@ const App = () => {
   const currentMonthConcepts = effectiveNominaMonth
     ? (conceptsByMonth[effectiveNominaMonth] ?? { ingresos: [], deducciones: [] })
     : { ingresos: [], deducciones: [] };
+
+  // Gather all known subcategories for the concept editor datalist
+  const KNOWN_SUBCATEGORIES = [
+    'Ingreso Fijo', 'Ingreso Variable (Bonus)', 'Ingreso Variable (Dividendos)',
+    'Ingreso Variable (ESPP)', 'Ingreso Variable (RSU)', 'Beneficio en Especie',
+    'Ahorro Jubilación', 'Impuestos (IRPF)', 'Impuestos (Ajustes)',
+    'Seguridad Social', 'Inversión Acciones (ESPP)', 'Diferido', 'Ajuste Contable',
+  ];
 
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
   const esppYtd = annual.esppYtd ?? 0;
@@ -721,12 +762,58 @@ const App = () => {
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
           return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Distribución mensual de la nómina */}
+            {/* Distribución del mes seleccionado */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6">
-                Distribución mensual de tu nómina
-              </h2>
-              <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Distribución de la nómina
+                  </h2>
+                  {effectiveNominaMonth && year !== 'all' && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Datos reales del mes seleccionado
+                    </p>
+                  )}
+                </div>
+                {/* Month selector lives here, next to the card title */}
+                {year !== 'all' && (
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-indigo-500 shrink-0" />
+                    <select
+                      value={effectiveNominaMonth ?? ''}
+                      onChange={(e) => setSelectedNominaMonth(Number(e.target.value))}
+                      disabled={availableConceptMonths.length === 0}
+                      className="text-sm font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer disabled:opacity-50"
+                      aria-label="Seleccionar mes"
+                    >
+                      {availableConceptMonths.length === 0 && (
+                        <option value="">Sin datos</option>
+                      )}
+                      {(() => {
+                        const MONTH_NAMES_SEL = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                        return availableConceptMonths.map((m) => (
+                          <option key={m} value={m}>{MONTH_NAMES_SEL[m]}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                )}
+              </div>
+              {year === 'all' ? (
+                <p className="text-sm text-slate-400 py-4">
+                  Selecciona un año concreto para ver la distribución mensual de conceptos.
+                </p>
+              ) : (
+                <SankeyChart
+                  monthData={currentMonthConcepts.ingresos.length > 0
+                    ? computeSankeyFromConcepts(currentMonthConcepts)
+                    : undefined}
+                  annual={annual}
+                  history={history}
+                  isPrivate={isPrivacyMode}
+                />
+              )}
             </div>
 
             {/* Conceptos tables */}
@@ -738,93 +825,154 @@ const App = () => {
               </div>
             ) : (
               <>
-                {/* Month selector header */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">
-                    Conceptos de nómina
-                  </h3>
-                  {availableConceptMonths.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Calendar size={15} className="text-indigo-500 shrink-0" />
-                      <select
-                        value={effectiveNominaMonth ?? ''}
-                        onChange={(e) => setSelectedNominaMonth(Number(e.target.value))}
-                        className="text-sm font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer"
-                        aria-label="Seleccionar mes"
-                      >
-                        {availableConceptMonths.map((m) => (
-                          <option key={m} value={m}>{MONTH_NAMES[m]}</option>
-                        ))}
-                      </select>
+                {/* Reusable concept row with inline editing */}
+                {(() => {
+                  const ConceptRow = ({ c, amountClass }) => {
+                    const isUnmatched = !c['subcategoría'];
+                    const isEditing = editingConcept?.id === c.id;
+                    const fmtAmt = (v) => `${v.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`;
+
+                    if (isEditing) {
+                      return (
+                        <div className="py-3 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-900/10 rounded-xl px-3 -mx-3 space-y-2">
+                          <input
+                            className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                            value={editingConcept.concepto}
+                            onChange={(e) => setEditingConcept((p) => ({ ...p, concepto: e.target.value }))}
+                            placeholder="Nombre del concepto"
+                          />
+                          <div className="flex gap-2">
+                            <select
+                              className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                              value={editingConcept.categoria}
+                              onChange={(e) => setEditingConcept((p) => ({ ...p, categoria: e.target.value }))}
+                            >
+                              <option value="Ingreso">Ingreso</option>
+                              <option value="Deducción">Deducción</option>
+                            </select>
+                            <input
+                              className="flex-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                              value={editingConcept.subcategoria}
+                              onChange={(e) => setEditingConcept((p) => ({ ...p, subcategoria: e.target.value }))}
+                              placeholder="Subcategoría"
+                              list="subcategoria-options"
+                            />
+                            <datalist id="subcategoria-options">
+                              {KNOWN_SUBCATEGORIES.map((s) => <option key={s} value={s} />)}
+                            </datalist>
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => setEditingConcept(null)}
+                              className="text-xs px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50"
+                            ><X size={12} className="inline mr-1" />Cancelar</button>
+                            <button
+                              onClick={handleSaveConcept}
+                              disabled={conceptSaving}
+                              className="text-xs px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              {conceptSaving ? <Loader2 size={12} className="inline animate-spin mr-1" /> : <CheckCircle2 size={12} className="inline mr-1" />}
+                              Guardar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="group flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.concepto}</p>
+                            {isUnmatched && (
+                              <span className="shrink-0 text-[10px] font-bold uppercase bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded">
+                                Sin categoría
+                              </span>
+                            )}
+                          </div>
+                          {c['subcategoría'] && (
+                            <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <p className={`text-sm font-bold ${amountClass}`}>
+                            {isPrivacyMode ? '•••' : fmtAmt(c.importe)}
+                          </p>
+                          {c.id && (
+                            <button
+                              onClick={() => setEditingConcept({
+                                id: c.id,
+                                concepto: c.concepto,
+                                categoria: c['categoría'] || '',
+                                subcategoria: c['subcategoría'] || '',
+                              })}
+                              className={`p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors ${isUnmatched ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                              title="Editar clasificación"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Conceptos de Devengo */}
+                      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                          Conceptos de Devengo
+                        </h3>
+                        {currentMonthConcepts.ingresos.length === 0 ? (
+                          <p className="text-sm text-slate-400">Sin datos de conceptos para este mes.</p>
+                        ) : (
+                          <div className="space-y-0">
+                            {currentMonthConcepts.ingresos.map((c, i) => (
+                              <ConceptRow
+                                key={c.id ?? i}
+                                c={c}
+                                amountClass={c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}
+                              />
+                            ))}
+                            <div className="flex items-center justify-between pt-3 mt-1">
+                              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Deducciones y Retenciones */}
+                      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                          Deducciones y Retenciones
+                        </h3>
+                        {currentMonthConcepts.deducciones.length === 0 ? (
+                          <p className="text-sm text-slate-400">Sin datos de deducciones para este mes.</p>
+                        ) : (
+                          <div className="space-y-0">
+                            {currentMonthConcepts.deducciones.map((c, i) => (
+                              <ConceptRow
+                                key={c.id ?? i}
+                                c={c}
+                                amountClass="text-rose-600"
+                              />
+                            ))}
+                            <div className="flex items-center justify-between pt-3 mt-1">
+                              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
+                              <p className="text-sm font-bold text-rose-600">
+                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Conceptos de Devengo */}
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                      Conceptos de Devengo
-                    </h3>
-                    {currentMonthConcepts.ingresos.length === 0 ? (
-                      <p className="text-sm text-slate-400">Sin datos de conceptos para este mes.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {currentMonthConcepts.ingresos.map((c, i) => (
-                          <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
-                              {c['subcategoría'] && (
-                                <p className="text-xs text-slate-400">{c['subcategoría']}</p>
-                              )}
-                            </div>
-                            <p className={`text-sm font-bold ${c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}`}>
-                              {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                            </p>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between pt-3">
-                          <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                            {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Deducciones y Retenciones */}
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                      Deducciones y Retenciones
-                    </h3>
-                    {currentMonthConcepts.deducciones.length === 0 ? (
-                      <p className="text-sm text-slate-400">Sin datos de deducciones para este mes.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {currentMonthConcepts.deducciones.map((c, i) => (
-                          <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
-                              {c['subcategoría'] && (
-                                <p className="text-xs text-slate-400">{c['subcategoría']}</p>
-                              )}
-                            </div>
-                            <p className="text-sm font-bold text-rose-600">
-                              {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                            </p>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between pt-3">
-                          <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
-                          <p className="text-sm font-bold text-rose-600">
-                            {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -1469,6 +1617,7 @@ const App = () => {
               </h2>
 
               <div className="mt-2 mb-10">
+                {/* Legend */}
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
                     <span className="w-3 h-3 rounded-full bg-blue-500 shrink-0" /> Salario Bruto
@@ -1483,28 +1632,27 @@ const App = () => {
                     {year === 'all' ? 'Datos agregados anuales' : `${history.length} mes${history.length !== 1 ? 'es' : ''} con datos en ${year}`}
                   </span>
                 </div>
-                <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="w-full h-48 md:h-64 lg:h-80 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
-                  {(() => {
-                    const maxVal = Math.max(...history.map((x) => Math.max(x.bruto, x.neto, x.tax)), 1);
-                    const ticks = [0, 0.25, 0.5, 0.75, 1];
-                    const toPoints = (field) =>
-                      history
-                        .map((h, i) => {
-                          const x = history.length === 1 ? 50 : (i / (history.length - 1)) * 96 + 2;
-                          const y = 30 - (h[field] / maxVal) * 26;
-                          return `${x},${y}`;
-                        })
-                        .join(' ');
-                    return (
-                      <>
+
+                {/* Chart: aspect-ratio wrapper prevents distortion; max-width prevents excessive size */}
+                {(() => {
+                  const maxVal = Math.max(...history.map((x) => Math.max(x.bruto, x.neto, x.tax)), 1);
+                  const ticks = [0, 0.25, 0.5, 0.75, 1];
+                  const ptX = (i) => history.length === 1 ? 50 : (i / (history.length - 1)) * 96 + 2;
+                  const toPoints = (field) =>
+                    history.map((h, i) => `${ptX(i)},${30 - (h[field] / maxVal) * 26}`).join(' ');
+                  return (
+                    <div style={{ aspectRatio: '100/34', maxWidth: '900px' }} className="w-full mx-auto relative">
+                      <svg
+                        viewBox="0 0 100 34"
+                        className="w-full h-full bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800"
+                      >
                         {ticks.map((t) => {
                           const y = 30 - 26 * t;
-                          const value = maxVal * t;
                           return (
                             <g key={`tick-${t}`}>
                               <line x1="2" x2="98" y1={y} y2={y} stroke="#cbd5e1" strokeWidth="0.25" />
                               <text x="0.5" y={y + 0.9} fontSize="1.8" fill="#64748b">
-                                {Math.round(value)}
+                                {Math.round(maxVal * t)}
                               </text>
                             </g>
                           );
@@ -1513,23 +1661,62 @@ const App = () => {
                         <polyline fill="none" stroke="#f43f5e" strokeWidth="0.8" points={toPoints('tax')} />
                         <polyline fill="none" stroke="#10b981" strokeWidth="0.8" points={toPoints('neto')} />
                         {history.map((h, i) => {
-                          const x = history.length === 1 ? 50 : (i / (history.length - 1)) * 96 + 2;
+                          const x = ptX(i);
+                          const isHov = evolHovered?.i === i;
                           const yB = 30 - (h.bruto / maxVal) * 26;
                           const yT = 30 - (h.tax / maxVal) * 26;
                           const yN = 30 - (h.neto / maxVal) * 26;
                           return (
-                            <g key={`pts-${i}`}>
-                              <circle cx={x} cy={yB} r="0.7" fill="#3b82f6"><title>Bruto: {Math.round(h.bruto)}</title></circle>
-                              <circle cx={x} cy={yT} r="0.7" fill="#f43f5e"><title>Impuestos: {Math.round(h.tax)}</title></circle>
-                              <circle cx={x} cy={yN} r="0.7" fill="#10b981"><title>Neto: {Math.round(h.neto)}</title></circle>
+                            <g key={`pts-${i}`}
+                              onMouseEnter={() => setEvolHovered({ i, h, x })}
+                              onMouseLeave={() => setEvolHovered(null)}
+                              style={{ cursor: 'crosshair' }}
+                            >
+                              {/* Wide invisible hit area per column */}
+                              <line x1={x} x2={x} y1="2" y2="31" stroke="transparent" strokeWidth="5" />
+                              {isHov && <line x1={x} x2={x} y1="2" y2="31" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="1,0.8" />}
+                              <circle cx={x} cy={yB} r={isHov ? '1.1' : '0.7'} fill="#3b82f6" />
+                              <circle cx={x} cy={yT} r={isHov ? '1.1' : '0.7'} fill="#f43f5e" />
+                              <circle cx={x} cy={yN} r={isHov ? '1.1' : '0.7'} fill="#10b981" />
                             </g>
                           );
                         })}
-                      </>
-                    );
-                  })()}
-                </svg>
-                <div className="flex justify-between mt-2 text-[11px] text-slate-400 font-semibold">
+                      </svg>
+
+                      {/* Custom tooltip overlay */}
+                      {evolHovered && (() => {
+                        const leftPct = evolHovered.x; // already in 0-100 SVG units = percentage
+                        return (
+                          <div
+                            className="absolute z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg px-3 py-2.5 text-xs pointer-events-none"
+                            style={{
+                              left: `${leftPct}%`,
+                              bottom: '105%',
+                              transform: 'translateX(-50%)',
+                              minWidth: '140px',
+                            }}
+                          >
+                            <p className="font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                              {evolHovered.h.month}{year !== 'all' ? ` ${year}` : ''}
+                            </p>
+                            <p className="text-blue-600 dark:text-blue-400">
+                              Bruto: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.bruto)}
+                            </p>
+                            <p className="text-rose-500">
+                              Impuestos: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.tax)}
+                            </p>
+                            <p className="text-emerald-600 dark:text-emerald-400 font-bold">
+                              Neto: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.neto)}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
+
+                {/* X-axis month labels */}
+                <div style={{ maxWidth: '900px' }} className="flex justify-between mx-auto mt-2 text-[11px] text-slate-400 font-semibold">
                   {history.map((h, i) => (
                     <span key={`${h.month}-${i}`}>{h.month}</span>
                   ))}
