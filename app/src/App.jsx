@@ -761,6 +761,94 @@ const App = () => {
         {activeTab === 'nomina' && (() => {
           const MONTH_NAMES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+          // Plain render function — NOT used as a JSX component to avoid React
+          // unmounting/remounting on every render (which caused null-prop crashes).
+          const fmtAmt = (v) => `${(v ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`;
+          const renderConceptRow = (c, amountClass, i) => {
+            if (!c) return null;
+            const isUnmatched = !c.subcategory;
+            const isEditing = editingConcept != null && editingConcept.id === c.id;
+            return (
+              <div key={c.id ?? i}>
+                {isEditing ? (
+                  <div className="py-3 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-900/10 rounded-xl px-3 -mx-3 space-y-2">
+                    <input
+                      className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                      value={editingConcept.item}
+                      onChange={(e) => setEditingConcept((p) => ({ ...p, item: e.target.value }))}
+                      placeholder="Nombre del concepto"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                        value={editingConcept.category}
+                        onChange={(e) => setEditingConcept((p) => ({ ...p, category: e.target.value }))}
+                      >
+                        <option value="Ingreso">Ingreso</option>
+                        <option value="Deducción">Deducción</option>
+                      </select>
+                      <input
+                        className="flex-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
+                        value={editingConcept.subcategory}
+                        onChange={(e) => setEditingConcept((p) => ({ ...p, subcategory: e.target.value }))}
+                        placeholder="Subcategoría"
+                        list="subcategoria-options"
+                      />
+                      <datalist id="subcategoria-options">
+                        {KNOWN_SUBCATEGORIES.map((s) => <option key={s} value={s} />)}
+                      </datalist>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setEditingConcept(null)}
+                        className="text-xs px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50"
+                      ><X size={12} className="inline mr-1" />Cancelar</button>
+                      <button
+                        onClick={handleSaveConcept}
+                        disabled={conceptSaving}
+                        className="text-xs px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {conceptSaving ? <Loader2 size={12} className="inline animate-spin mr-1" /> : <CheckCircle2 size={12} className="inline mr-1" />}
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.item}</p>
+                        {isUnmatched && (
+                          <span className="shrink-0 text-[10px] font-bold uppercase bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded">
+                            Sin categoría
+                          </span>
+                        )}
+                      </div>
+                      {c.subcategory && (
+                        <p className="text-xs text-slate-400">{c.subcategory}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <p className={`text-sm font-bold ${amountClass}`}>
+                        {isPrivacyMode ? '•••' : fmtAmt(c.amount)}
+                      </p>
+                      {c.id && (
+                        <button
+                          onClick={() => setEditingConcept({ id: c.id, item: c.item, category: c.category || '', subcategory: c.subcategory || '' })}
+                          className={`p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors ${isUnmatched ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                          title="Editar clasificación"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          };
+
           return (
           <div className="space-y-8 animate-in fade-in duration-500">
             {/* Distribución del mes seleccionado */}
@@ -825,156 +913,47 @@ const App = () => {
                 </p>
               </div>
             ) : (
-              <>
-                {/* Reusable concept row with inline editing */}
-                {(() => {
-                  const ConceptRow = ({ c, amountClass }) => {
-                    const isUnmatched = !c['subcategory'];
-                    const isEditing = editingConcept?.id === c.id;
-                    const fmtAmt = (v) => `${v.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`;
-
-                    if (isEditing) {
-                      return (
-                        <div className="py-3 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-900/10 rounded-xl px-3 -mx-3 space-y-2">
-                          <input
-                            className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                            value={editingConcept.item}
-                            onChange={(e) => setEditingConcept((p) => ({ ...p, item: e.target.value }))}
-                            placeholder="Nombre del concepto"
-                          />
-                          <div className="flex gap-2">
-                            <select
-                              className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                              value={editingConcept.category}
-                              onChange={(e) => setEditingConcept((p) => ({ ...p, categoria: e.target.value }))}
-                            >
-                              <option value="Ingreso">Ingreso</option>
-                              <option value="Deducción">Deducción</option>
-                            </select>
-                            <input
-                              className="flex-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                              value={editingConcept.subcategory}
-                              onChange={(e) => setEditingConcept((p) => ({ ...p, subcategory: e.target.value }))}
-                              placeholder="Subcategoría"
-                              list="subcategoria-options"
-                            />
-                            <datalist id="subcategoria-options">
-                              {KNOWN_SUBCATEGORIES.map((s) => <option key={s} value={s} />)}
-                            </datalist>
-                          </div>
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              onClick={() => setEditingConcept(null)}
-                              className="text-xs px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50"
-                            ><X size={12} className="inline mr-1" />Cancelar</button>
-                            <button
-                              onClick={handleSaveConcept}
-                              disabled={conceptSaving}
-                              className="text-xs px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                            >
-                              {conceptSaving ? <Loader2 size={12} className="inline animate-spin mr-1" /> : <CheckCircle2 size={12} className="inline mr-1" />}
-                              Guardar
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="group flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.item}</p>
-                            {isUnmatched && (
-                              <span className="shrink-0 text-[10px] font-bold uppercase bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded">
-                                Sin categoría
-                              </span>
-                            )}
-                          </div>
-                          {c['subcategory'] && (
-                            <p className="text-xs text-slate-400">{c['subcategory']}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-3">
-                          <p className={`text-sm font-bold ${amountClass}`}>
-                            {isPrivacyMode ? '•••' : fmtAmt(c.amount)}
-                          </p>
-                          {c.id && (
-                            <button
-                              onClick={() => setEditingConcept({
-                                id: c.id,
-                                item:        c.item,
-                                category:    c['category'] || '',
-                                subcategory: c['subcategory'] || '',
-                              })}
-                              className={`p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors ${isUnmatched ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                              title="Editar clasificación"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  return (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {/* Conceptos de Devengo */}
-                      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                          Conceptos de Devengo
-                        </h3>
-                        {currentMonthConcepts.ingresos.length === 0 ? (
-                          <p className="text-sm text-slate-400">Sin datos de conceptos para este mes.</p>
-                        ) : (
-                          <div className="space-y-0">
-                            {currentMonthConcepts.ingresos.map((c, i) => (
-                              <ConceptRow
-                                key={c.id ?? i}
-                                c={c}
-                                amountClass={c.amount > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}
-                              />
-                            ))}
-                            <div className="flex items-center justify-between pt-3 mt-1">
-                              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
-                              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.amount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Deducciones y Retenciones */}
-                      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                          Deducciones y Retenciones
-                        </h3>
-                        {currentMonthConcepts.deducciones.length === 0 ? (
-                          <p className="text-sm text-slate-400">Sin datos de deducciones para este mes.</p>
-                        ) : (
-                          <div className="space-y-0">
-                            {currentMonthConcepts.deducciones.map((c, i) => (
-                              <ConceptRow
-                                key={c.id ?? i}
-                                c={c}
-                                amountClass="text-rose-600"
-                              />
-                            ))}
-                            <div className="flex items-center justify-between pt-3 mt-1">
-                              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
-                              <p className="text-sm font-bold text-rose-600">
-                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.amount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Conceptos de Devengo */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                    Conceptos de Devengo
+                  </h3>
+                  {currentMonthConcepts.ingresos.length === 0 ? (
+                    <p className="text-sm text-slate-400">Sin datos de conceptos para este mes.</p>
+                  ) : (
+                    <div className="space-y-0">
+                      {currentMonthConcepts.ingresos.map((c, i) => renderConceptRow(c, c?.amount > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600', i))}
+                      <div className="flex items-center justify-between pt-3 mt-1">
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                          {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + (c?.amount ?? 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                        </p>
                       </div>
                     </div>
-                  );
-                })()}
-              </>
+                  )}
+                </div>
+
+                {/* Deducciones y Retenciones */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                    Deducciones y Retenciones
+                  </h3>
+                  {currentMonthConcepts.deducciones.length === 0 ? (
+                    <p className="text-sm text-slate-400">Sin datos de deducciones para este mes.</p>
+                  ) : (
+                    <div className="space-y-0">
+                      {currentMonthConcepts.deducciones.map((c, i) => renderConceptRow(c, 'text-rose-600', i))}
+                      <div className="flex items-center justify-between pt-3 mt-1">
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
+                        <p className="text-sm font-bold text-rose-600">
+                          {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + (c?.amount ?? 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           );
