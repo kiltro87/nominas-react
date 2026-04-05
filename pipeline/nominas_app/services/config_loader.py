@@ -41,19 +41,19 @@ def load_nominas_from_sheet() -> pd.DataFrame:
             service_role_key=cfg["supabase_service_role_key"],
             schema=cfg.get("supabase_schema", "public"),
         )
-        rows = client.select("nominas", columns="*", order="año.asc,mes.asc,concepto.asc")
+        rows = client.select("nominas", columns="*", order="year.asc,month.asc,item.asc")
     except Exception as exc:  # noqa: BLE001
         st.warning(f"No se pudo cargar 'nominas' desde Supabase: {exc}")
         return pd.DataFrame()
     if not rows:
         return pd.DataFrame()
     columns = {
-        "año": "Año",
-        "mes": "Mes",
-        "concepto": "Concepto",
-        "importe": "Importe",
-        "categoría": "Categoría",
-        "subcategoría": "Subcategoría",
+        "year":        "Año",
+        "month":       "Mes",
+        "item":        "Concepto",
+        "amount":      "Importe",
+        "category":    "Categoría",
+        "subcategory": "Subcategoría",
         "file_id": "file_id",
         "file_name": "file_name",
     }

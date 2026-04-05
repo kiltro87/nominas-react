@@ -16,26 +16,27 @@ export const fetchAllYearConcepts = async (year) => {
 
   const { data, error } = await supabase
     .from('nominas')
-    .select('id, concepto, "categoría", "subcategoría", importe, mes')
-    .eq('año', Number(year))
-    .order('mes', { ascending: true });
+    .select('id, item, category, subcategory, amount, month')
+    .eq('year', Number(year))
+    .order('month', { ascending: true });
 
   if (error || !data?.length) return EMPTY;
 
   const byMonth = {};
   for (const row of data) {
-    // Skip rows with invalid or unrecognised categoría values (e.g. 'Impuesto')
-    if (row['categoría'] !== 'Ingreso' && row['categoría'] !== 'Deducción') continue;
-    if (!byMonth[row.mes]) byMonth[row.mes] = { ingresos: [], deducciones: [] };
-    if (row['categoría'] === 'Ingreso') {
-      byMonth[row.mes].ingresos.push(row);
+    // Skip rows whose category is not a displayable payroll line
+    // (e.g. 'Impuesto', 'No computable' — the latter stores the % IRPF applied)
+    if (row['category'] !== 'Ingreso' && row['category'] !== 'Deducción') continue;
+    if (!byMonth[row.month]) byMonth[row.month] = { ingresos: [], deducciones: [] };
+    if (row['category'] === 'Ingreso') {
+      byMonth[row.month].ingresos.push(row);
     } else {
-      byMonth[row.mes].deducciones.push(row);
+      byMonth[row.month].deducciones.push(row);
     }
   }
-  for (const mes of Object.keys(byMonth)) {
-    byMonth[mes].ingresos.sort((a, b) => b.importe - a.importe);
-    byMonth[mes].deducciones.sort((a, b) => a.importe - b.importe);
+  for (const month of Object.keys(byMonth)) {
+    byMonth[month].ingresos.sort((a, b) => b.amount - a.amount);
+    byMonth[month].deducciones.sort((a, b) => a.amount - b.amount);
   }
 
   const availableMonths = Object.keys(byMonth).map(Number).sort((a, b) => a - b);
@@ -99,19 +100,19 @@ export const fetchPayrollDataFromSupabase = async () => {
 };
 
 /**
- * Updates a single nominas row's concepto, categoría, and subcategoría.
+ * Updates a single nominas row's item, category, and subcategory.
  * Called when the user edits an unrecognized (or incorrectly classified) concept
  * in the Mi Nómina concept tables.
  *
  * @param {number} id - Primary key of the nominas row.
- * @param {{ concepto: string, categoria: string, subcategoria: string }} fields
+ * @param {{ item: string, category: string, subcategory: string }} fields
  * @returns {Promise<void>}
  */
-export const updateNominaConcept = async (id, { concepto, categoria, subcategoria }) => {
+export const updateNominaConcept = async (id, { item, category, subcategory }) => {
   if (!hasSupabaseConfig || !supabase) throw new Error('Supabase no configurado');
   const { error } = await supabase
     .from('nominas')
-    .update({ concepto, 'categoría': categoria, 'subcategoría': subcategoria })
+    .update({ item, category, subcategory })
     .eq('id', id);
   if (error) throw error;
 };

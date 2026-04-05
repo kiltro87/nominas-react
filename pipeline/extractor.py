@@ -392,18 +392,18 @@ def split_irpf_embedded_pct_rows(sheet_rows: List[Dict[str, Any]]) -> List[Dict[
     """
     result: List[Dict[str, Any]] = []
     for row in sheet_rows:
-        m = _IRPF_EMBEDDED_RE.search(row.get("Concepto", ""))
+        m = _IRPF_EMBEDDED_RE.search(row.get("item", ""))
         if m:
             pct = float(f"{m.group(1)}.{m.group(2)}")
-            result.append({**row, "Concepto": "Tributación I.R.P.F."})
+            result.append({**row, "item": "Tributación I.R.P.F."})
             result.append(
                 {
-                    "Año": row["Año"],
-                    "Mes": row["Mes"],
-                    "Concepto": "% IRPF",
-                    "Importe": round(pct, 2),
-                    "Categoría": "Impuesto IRPF",
-                    "Subcategoría": "Porcentaje",
+                    "year": row["year"],
+                    "month": row["month"],
+                    "item": "% IRPF",
+                    "amount": round(pct, 2),
+                    "category": "No computable",
+                    "subcategory": "Porcentaje",
                 }
             )
         else:
@@ -470,12 +470,12 @@ def extract_payroll(pdf_path: str) -> Dict[str, Any]:
 
         sheet_rows.append(
             {
-                "Año": year,
-                "Mes": month,
-                "Concepto": r["concepto"],
-                "Importe": round(importe, 2),
-                "Categoría": categoria,
-                "Subcategoría": subcategoria,
+                "year": year,
+                "month": month,
+                "item": r["concepto"],
+                "amount": round(importe, 2),
+                "category": categoria,
+                "subcategory": subcategoria,
             }
         )
 
@@ -488,8 +488,8 @@ def extract_payroll(pdf_path: str) -> Dict[str, Any]:
     return {
         "archivo": str(path),
         "periodo": {
-            "año": year,
-            "mes": month,
+            "year": year,
+            "month": month,
             **period_meta,
         },
         "coordenadas_detectadas": {

@@ -102,15 +102,15 @@ export const payrollData = {
  */
 const mockMonth = (base, complement, bonus, irpfAmt, ssAmt) => ({
   ingresos: [
-    { concepto: 'Salario Base',       'categoría': 'Ingreso',   'subcategoría': 'Salario',            importe: base },
-    { concepto: 'Complemento Mejora', 'categoría': 'Ingreso',   'subcategoría': 'Complemento',        importe: complement },
-    ...(bonus ? [{ concepto: 'Bonus por Objetivos', 'categoría': 'Ingreso', 'subcategoría': 'Variable', importe: bonus }] : []),
+    { item: 'Salario Base',       category: 'Ingreso',   subcategory: 'Salario',            amount: base },
+    { item: 'Complemento Mejora', category: 'Ingreso',   subcategory: 'Complemento',        amount: complement },
+    ...(bonus ? [{ item: 'Bonus por Objetivos', category: 'Ingreso', subcategory: 'Variable', amount: bonus }] : []),
   ],
   deducciones: [
-    { concepto: 'Retención IRPF',               'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF', importe: irpfAmt },
-    { concepto: 'Seguridad Social',             'categoría': 'Deducción', 'subcategoría': 'Seguridad Social', importe: ssAmt },
-    { concepto: 'Plan de Pensiones (empleado)', 'categoría': 'Deducción', 'subcategoría': 'Diferido',         importe: -200 },
-    { concepto: 'Seguro Médico (Flexible)',      'categoría': 'Deducción', 'subcategoría': 'Diferido',         importe: -80 },
+    { item: 'Retención IRPF',               category: 'Deducción', subcategory: 'Tributación IRPF', amount: irpfAmt },
+    { item: 'Seguridad Social',             category: 'Deducción', subcategory: 'Seguridad Social', amount: ssAmt },
+    { item: 'Plan de Pensiones (empleado)', category: 'Deducción', subcategory: 'Diferido',         amount: -200 },
+    { item: 'Seguro Médico (Flexible)',      category: 'Deducción', subcategory: 'Diferido',         amount: -80 },
   ],
 });
 

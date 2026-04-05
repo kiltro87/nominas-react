@@ -2,7 +2,7 @@
  * Derives the SankeyChart data shape from per-concept payroll line items
  * for a single month.
  *
- * Maps subcategoría strings (from "Categorias de conceptos.json") to the
+ * Maps subcategory strings (from concept_categories table) to the
  * five Sankey buckets: neto, irpf, ss, pension, esppRsu, flex.
  *
  * @param {{ ingresos: Array, deducciones: Array }} concepts - From fetchAllYearConcepts
@@ -10,10 +10,10 @@
  */
 
 const sumBySub = (rows, sub) =>
-  rows.filter((r) => r['subcategoría'] === sub).reduce((s, r) => s + (r.importe ?? 0), 0);
+  rows.filter((r) => r['subcategory'] === sub).reduce((s, r) => s + (r.amount ?? 0), 0);
 
 export function computeSankeyFromConcepts({ ingresos = [], deducciones = [] }) {
-  const bruto = ingresos.filter((c) => c.importe > 0).reduce((s, c) => s + c.importe, 0);
+  const bruto = ingresos.filter((c) => c.amount > 0).reduce((s, c) => s + c.amount, 0);
 
   const irpf = Math.abs(
     sumBySub(deducciones, 'Impuestos (IRPF)') +
@@ -39,7 +39,7 @@ export function computeSankeyFromConcepts({ ingresos = [], deducciones = [] }) {
     sumBySub(deducciones, 'Ajuste Contable'),
   );
 
-  const totalDeducido = deducciones.reduce((s, c) => s + c.importe, 0); // sum of negatives
+  const totalDeducido = deducciones.reduce((s, c) => s + c.amount, 0); // sum of negatives
   const neto = Math.max(0, bruto + totalDeducido); // bruto - |deducciones|
 
   return { bruto, neto, irpf, ss, pension, esppRsu, flex };

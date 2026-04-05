@@ -255,33 +255,33 @@ def to_nominas_rows(sheet_rows: List[Dict[str, Any]], file_id: str, file_name: s
     rows: List[Dict[str, Any]] = []
     irpf_pct: float | None = None
     for r in sheet_rows:
-        concepto_raw = str(r.get("Concepto", ""))
+        concepto_raw = str(r.get("item", ""))
         concepto_normalizado = _normalize_concept(concepto_raw)
         if irpf_pct is None:
             irpf_pct = _extract_irpf_percentage(concepto_raw)
         rows.append(
             {
-                "año": r["Año"],
-                "mes": r["Mes"],
-                "concepto": concepto_normalizado,
-                "importe": r["Importe"],
-                "categoría": r["Categoría"],
-                "subcategoría": r["Subcategoría"],
-                "file_id": file_id,
-                "file_name": file_name,
+                "year":        r["year"],
+                "month":       r["month"],
+                "item":        concepto_normalizado,
+                "amount":      r["amount"],
+                "category":    r["category"],
+                "subcategory": r["subcategory"],
+                "file_id":     file_id,
+                "file_name":   file_name,
             }
         )
     if rows and irpf_pct is not None:
         rows.append(
             {
-                "año": rows[0]["año"],
-                "mes": rows[0]["mes"],
-                "concepto": "% IRPF",
-                "importe": irpf_pct,
-                "categoría": "Impuesto IRPF",
-                "subcategoría": "Porcentaje",
-                "file_id": file_id,
-                "file_name": file_name,
+                "year":        rows[0]["year"],
+                "month":       rows[0]["month"],
+                "item":        "% IRPF",
+                "amount":      irpf_pct,
+                "category":    "No computable",
+                "subcategory": "Porcentaje",
+                "file_id":     file_id,
+                "file_name":   file_name,
             }
         )
     return rows
@@ -353,8 +353,8 @@ def process_new_payrolls(config_path: str, limit: int | None = None) -> Dict[str
             nominas_rows = to_nominas_rows(result["sheet_rows"], file_id, file_name)
             sheets.insert_rows("nominas", nominas_rows)
             period = result.get("periodo", {})
-            year = period.get("año")
-            month = period.get("mes")
+            year = period.get("year")
+            month = period.get("month")
             target_name = build_payroll_filename(month, year, file_name)
             move_and_rename_file(
                 drive_service=drive,

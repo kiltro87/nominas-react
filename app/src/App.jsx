@@ -233,7 +233,7 @@ const App = () => {
   const [selectedYear, setSelectedYear] = useState('2025');
   const [selectedNominaMonth, setSelectedNominaMonth] = useState(null); // null = latest
   const [evolHovered, setEvolHovered] = useState(null); // { i, h, x } for evolution chart tooltip
-  // Inline concept editor state: null = closed; otherwise { id, concepto, categoria, subcategoria }
+  // Inline concept editor state: null = closed; otherwise { id, item, category, subcategory }
   const [editingConcept, setEditingConcept] = useState(null);
   const [conceptSaving, setConceptSaving] = useState(false);
   const [excelUpload, setExcelUpload] = useState({
@@ -274,14 +274,14 @@ const App = () => {
     setConceptSaving(true);
     try {
       await updateNominaConcept(editingConcept.id, {
-        concepto:    editingConcept.concepto,
-        categoria:   editingConcept.categoria,
-        subcategoria: editingConcept.subcategoria,
+        item:        editingConcept.item,
+        category:    editingConcept.category,
+        subcategory: editingConcept.subcategory,
       });
       await upsertConceptCategory({
-        concepto:    editingConcept.concepto,
-        categoria:   editingConcept.categoria,
-        subcategoria: editingConcept.subcategoria,
+        item:        editingConcept.item,
+        category:    editingConcept.category,
+        subcategory: editingConcept.subcategory,
       });
       setEditingConcept(null);
       // Trigger a refetch by bumping the year (reset + reselect)
@@ -829,7 +829,7 @@ const App = () => {
                 {/* Reusable concept row with inline editing */}
                 {(() => {
                   const ConceptRow = ({ c, amountClass }) => {
-                    const isUnmatched = !c['subcategoría'];
+                    const isUnmatched = !c['subcategory'];
                     const isEditing = editingConcept?.id === c.id;
                     const fmtAmt = (v) => `${v.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`;
 
@@ -838,14 +838,14 @@ const App = () => {
                         <div className="py-3 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-900/10 rounded-xl px-3 -mx-3 space-y-2">
                           <input
                             className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                            value={editingConcept.concepto}
-                            onChange={(e) => setEditingConcept((p) => ({ ...p, concepto: e.target.value }))}
+                            value={editingConcept.item}
+                            onChange={(e) => setEditingConcept((p) => ({ ...p, item: e.target.value }))}
                             placeholder="Nombre del concepto"
                           />
                           <div className="flex gap-2">
                             <select
                               className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                              value={editingConcept.categoria}
+                              value={editingConcept.category}
                               onChange={(e) => setEditingConcept((p) => ({ ...p, categoria: e.target.value }))}
                             >
                               <option value="Ingreso">Ingreso</option>
@@ -853,8 +853,8 @@ const App = () => {
                             </select>
                             <input
                               className="flex-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 outline-none"
-                              value={editingConcept.subcategoria}
-                              onChange={(e) => setEditingConcept((p) => ({ ...p, subcategoria: e.target.value }))}
+                              value={editingConcept.subcategory}
+                              onChange={(e) => setEditingConcept((p) => ({ ...p, subcategory: e.target.value }))}
                               placeholder="Subcategoría"
                               list="subcategoria-options"
                             />
@@ -884,28 +884,28 @@ const App = () => {
                       <div className="group flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.concepto}</p>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.item}</p>
                             {isUnmatched && (
                               <span className="shrink-0 text-[10px] font-bold uppercase bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded">
                                 Sin categoría
                               </span>
                             )}
                           </div>
-                          {c['subcategoría'] && (
-                            <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                          {c['subcategory'] && (
+                            <p className="text-xs text-slate-400">{c['subcategory']}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
                           <p className={`text-sm font-bold ${amountClass}`}>
-                            {isPrivacyMode ? '•••' : fmtAmt(c.importe)}
+                            {isPrivacyMode ? '•••' : fmtAmt(c.amount)}
                           </p>
                           {c.id && (
                             <button
                               onClick={() => setEditingConcept({
                                 id: c.id,
-                                concepto: c.concepto,
-                                categoria: c['categoría'] || '',
-                                subcategoria: c['subcategoría'] || '',
+                                item:        c.item,
+                                category:    c['category'] || '',
+                                subcategory: c['subcategory'] || '',
                               })}
                               className={`p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors ${isUnmatched ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                               title="Editar clasificación"
@@ -933,13 +933,13 @@ const App = () => {
                               <ConceptRow
                                 key={c.id ?? i}
                                 c={c}
-                                amountClass={c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}
+                                amountClass={c.amount > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}
                               />
                             ))}
                             <div className="flex items-center justify-between pt-3 mt-1">
                               <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
                               <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.amount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
                               </p>
                             </div>
                           </div>
@@ -965,7 +965,7 @@ const App = () => {
                             <div className="flex items-center justify-between pt-3 mt-1">
                               <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
                               <p className="text-sm font-bold text-rose-600">
-                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                                {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.amount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
                               </p>
                             </div>
                           </div>

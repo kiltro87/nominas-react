@@ -1,6 +1,6 @@
 -- Regular VIEW for current schema: public.nominas
 -- Columns expected in nominas:
--- id, año, mes, concepto, importe, categoría, subcategoría, file_id, file_name, created_at
+-- id, year, month, item, amount, category, subcategory, file_id, file_name, created_at
 --
 -- This view centralizes business formulas so the UI only renders.
 -- Being a regular view it always reflects the latest data without manual refresh.
@@ -10,12 +10,12 @@ drop view if exists public.payroll_metrics_mv;
 create view public.payroll_metrics_mv as
 with base as (
   select
-    n."año"::int as year,
-    n.mes::int as month,
-    trim(n.concepto) as concepto,
-    trim(coalesce(n."categoría", '')) as categoria,
-    trim(coalesce(n."subcategoría", '')) as subcategoria,
-    n.importe::numeric as amount
+    n.year::int as year,
+    n.month::int as month,
+    trim(n.item) as concepto,
+    trim(coalesce(n.category, '')) as categoria,
+    trim(coalesce(n.subcategory, '')) as subcategoria,
+    n.amount::numeric as amount
   from public.nominas n
 ),
 classified as (
