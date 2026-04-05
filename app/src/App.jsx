@@ -229,6 +229,7 @@ const App = () => {
   const [useMockData, setUseMockData] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
+  const [selectedNominaMonth, setSelectedNominaMonth] = useState(null); // null = latest
   const [excelUpload, setExcelUpload] = useState({
     status: 'idle', // idle | parsing | lookback | saving | done | error
     rows: [],
@@ -247,12 +248,27 @@ const App = () => {
     updatePassword,
     signOut,
   } = useSupabaseAuth();
-  const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, latestMonthConcepts, trend, sourceStatus } =
+  const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, conceptsByYear, trend, sourceStatus } =
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
   const { portfolio } = usePortfolioData(isAuthenticated && !useMockData, useMockData);
 
   const previousYear = year === 'all' ? '' : String(Number(year) - 1);
+
+  // Reset month selector whenever the selected year changes
+  const handleYearChange = (newYear) => {
+    setSelectedYear(newYear);
+    setSelectedNominaMonth(null);
+  };
+
+  // Derive the currently displayed month for Mi Nómina tab
+  const { byMonth: conceptsByMonth = {}, availableMonths: availableConceptMonths = [] } = conceptsByYear;
+  const latestConceptMonth = availableConceptMonths[availableConceptMonths.length - 1] ?? null;
+  const effectiveNominaMonth = selectedNominaMonth ?? latestConceptMonth;
+  const currentMonthConcepts = effectiveNominaMonth
+    ? (conceptsByMonth[effectiveNominaMonth] ?? { ingresos: [], deducciones: [] })
+    : { ingresos: [], deducciones: [] };
+
   const ahorroFiscalGenerado = annual.deferredAmount * (irpf.tipoMarginal / 100);
   const esppYtd = annual.esppYtd ?? 0;
   const rsuYtd = annual.rsuYtd ?? 0;
@@ -575,7 +591,7 @@ const App = () => {
 
   const PAGE_META = {
     overview:    { title: 'Resumen Ejecutivo',      sub: 'Vista general de tu compensación' },
-    nomina:      { title: 'Análisis de Nómina',     sub: `Último mes disponible${latestMonthConcepts.mes ? ` · Mes ${latestMonthConcepts.mes}` : ''}` },
+    nomina:      { title: 'Análisis de Nómina',     sub: effectiveNominaMonth ? `Mes ${effectiveNominaMonth} · ${year === 'all' ? 'selecciona un año' : year}` : 'Selecciona un año' },
     evolution:   { title: 'Evolución e Histórico',  sub: 'Tendencias y progresión salarial' },
     tax:         { title: 'Tramos e Impuestos',     sub: 'Fiscalidad y eficiencia tributaria' },
     investments: { title: 'Cartera e Inversiones',  sub: `Sesión: ${user?.email} · Fuente: Supabase` },
@@ -671,7 +687,7 @@ const App = () => {
               <Calendar size={15} className="text-indigo-500 shrink-0" />
               <select
                 value={year}
-                onChange={(e) => setSelectedYear(e.target.value)}
+                onChange={(e) => handleYearChange(e.target.value)}
                 className="text-sm font-semibold bg-transparent outline-none cursor-pointer"
                 aria-label="Seleccionar año"
               >
@@ -704,12 +720,15 @@ const App = () => {
         <main className="flex-1 overflow-y-auto p-8 space-y-8">
 
         {/* ── Mi Nómina ─────────────────────────────────────────────── */}
-        {activeTab === 'nomina' && (
+        {activeTab === 'nomina' && (() => {
+          const MONTH_NAMES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+          return (
           <div className="space-y-8 animate-in fade-in duration-500">
             {/* Anatomía Visual */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
               <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6">
-                Anatomía Visual de tu Nómina (mes actual)
+                Anatomía Visual de tu Nómina
               </h2>
               <PayrollAnatomy
                 monthly={selectedData.monthly}
@@ -723,78 +742,103 @@ const App = () => {
             {year === 'all' ? (
               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
                 <p className="text-sm text-slate-400">
-                  Selecciona un año concreto para ver el desglose de conceptos del último mes.
+                  Selecciona un año concreto para ver el desglose de conceptos por mes.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Conceptos de Devengo */}
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                    Conceptos de Devengo
+              <>
+                {/* Month selector header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">
+                    Conceptos de nómina
                   </h3>
-                  {latestMonthConcepts.ingresos.length === 0 ? (
-                    <p className="text-sm text-slate-400">Sin datos de conceptos.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {latestMonthConcepts.ingresos.map((c, i) => (
-                        <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
-                            {c['subcategoría'] && (
-                              <p className="text-xs text-slate-400">{c['subcategoría']}</p>
-                            )}
-                          </div>
-                          <p className={`text-sm font-bold ${c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}`}>
-                            {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                          </p>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between pt-3">
-                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                          {isPrivacyMode ? '•••' : `${latestMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                        </p>
-                      </div>
+                  {availableConceptMonths.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Calendar size={15} className="text-indigo-500 shrink-0" />
+                      <select
+                        value={effectiveNominaMonth ?? ''}
+                        onChange={(e) => setSelectedNominaMonth(Number(e.target.value))}
+                        className="text-sm font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer"
+                        aria-label="Seleccionar mes"
+                      >
+                        {availableConceptMonths.map((m) => (
+                          <option key={m} value={m}>{MONTH_NAMES[m]}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
 
-                {/* Deducciones y Retenciones */}
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-                    Deducciones y Retenciones
-                  </h3>
-                  {latestMonthConcepts.deducciones.length === 0 ? (
-                    <p className="text-sm text-slate-400">Sin datos de deducciones.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {latestMonthConcepts.deducciones.map((c, i) => (
-                        <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
-                            {c['subcategoría'] && (
-                              <p className="text-xs text-slate-400">{c['subcategoría']}</p>
-                            )}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Conceptos de Devengo */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                      Conceptos de Devengo
+                    </h3>
+                    {currentMonthConcepts.ingresos.length === 0 ? (
+                      <p className="text-sm text-slate-400">Sin datos de conceptos para este mes.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {currentMonthConcepts.ingresos.map((c, i) => (
+                          <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
+                              {c['subcategoría'] && (
+                                <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                              )}
+                            </div>
+                            <p className={`text-sm font-bold ${c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}`}>
+                              {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                            </p>
                           </div>
-                          <p className="text-sm font-bold text-rose-600">
-                            {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                        ))}
+                        <div className="flex items-center justify-between pt-3">
+                          <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                            {isPrivacyMode ? '•••' : `${currentMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
                           </p>
                         </div>
-                      ))}
-                      <div className="flex items-center justify-between pt-3">
-                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
-                        <p className="text-sm font-bold text-rose-600">
-                          {isPrivacyMode ? '•••' : `${latestMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
-                        </p>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Deducciones y Retenciones */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                      Deducciones y Retenciones
+                    </h3>
+                    {currentMonthConcepts.deducciones.length === 0 ? (
+                      <p className="text-sm text-slate-400">Sin datos de deducciones para este mes.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {currentMonthConcepts.deducciones.map((c, i) => (
+                          <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
+                              {c['subcategoría'] && (
+                                <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                              )}
+                            </div>
+                            <p className="text-sm font-bold text-rose-600">
+                              {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                            </p>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between pt-3">
+                          <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
+                          <p className="text-sm font-bold text-rose-600">
+                            {isPrivacyMode ? '•••' : `${currentMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Visión General ────────────────────────────────────────── */}
         {activeTab === 'overview' && (
@@ -1434,12 +1478,21 @@ const App = () => {
               </h2>
 
               <div className="mt-2 mb-10">
-                <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 mb-3">
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Bruto</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Impuestos</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Neto</span>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                    <span className="w-3 h-3 rounded-full bg-blue-500 shrink-0" /> Salario Bruto
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-rose-500 dark:text-rose-400">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" /> Impuestos (IRPF + SS)
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" /> Neto Percibido
+                  </span>
+                  <span className="ml-auto text-xs text-slate-400 italic">
+                    {year === 'all' ? 'Datos agregados anuales' : `${history.length} mes${history.length !== 1 ? 'es' : ''} con datos en ${year}`}
+                  </span>
                 </div>
-                <svg viewBox="0 0 100 34" className="w-full h-64 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
+                <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="w-full h-48 md:h-64 lg:h-80 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
                   {(() => {
                     const maxVal = Math.max(...history.map((x) => Math.max(x.bruto, x.neto, x.tax)), 1);
                     const ticks = [0, 0.25, 0.5, 0.75, 1];

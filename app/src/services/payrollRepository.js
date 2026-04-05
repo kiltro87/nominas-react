@@ -1,33 +1,43 @@
 import { hasSupabaseConfig, supabase } from './supabaseClient';
 
 /**
- * Fetches the individual payroll line-items (conceptos) for the latest month
- * of the given year from the `nominas` table.
- *
- * Returns two arrays: `ingresos` (categoría = 'Ingreso') and
- * `deducciones` (categoría = 'Deducción'), each sorted by |importe| desc.
+ * Fetches all payroll line-items (conceptos) for the given year from the
+ * `nominas` table, grouped by month.
  *
  * @param {string|number} year - The selected year (e.g. '2025').
- * @returns {Promise<{ ingresos: Array, deducciones: Array, mes: number|null }>}
+ * @returns {Promise<{
+ *   byMonth: Record<number, { ingresos: Array, deducciones: Array }>,
+ *   availableMonths: number[]
+ * }>}
  */
-export const fetchLatestMonthConcepts = async (year) => {
-  if (!hasSupabaseConfig || !supabase) return { ingresos: [], deducciones: [], mes: null };
+export const fetchAllYearConcepts = async (year) => {
+  const EMPTY = { byMonth: {}, availableMonths: [] };
+  if (!hasSupabaseConfig || !supabase) return EMPTY;
 
   const { data, error } = await supabase
     .from('nominas')
     .select('concepto, "categoría", "subcategoría", importe, mes')
     .eq('anio', Number(year))
-    .order('mes', { ascending: false });
+    .order('mes', { ascending: true });
 
-  if (error || !data?.length) return { ingresos: [], deducciones: [], mes: null };
+  if (error || !data?.length) return EMPTY;
 
-  const maxMes = Math.max(...data.map((r) => r.mes));
-  const latest = data.filter((r) => r.mes === maxMes);
+  const byMonth = {};
+  for (const row of data) {
+    if (!byMonth[row.mes]) byMonth[row.mes] = { ingresos: [], deducciones: [] };
+    if (row['categoría'] === 'Ingreso') {
+      byMonth[row.mes].ingresos.push(row);
+    } else {
+      byMonth[row.mes].deducciones.push(row);
+    }
+  }
+  for (const mes of Object.keys(byMonth)) {
+    byMonth[mes].ingresos.sort((a, b) => b.importe - a.importe);
+    byMonth[mes].deducciones.sort((a, b) => a.importe - b.importe);
+  }
 
-  const ingresos    = latest.filter((r) => r['categoría'] === 'Ingreso')   .sort((a, b) => b.importe - a.importe);
-  const deducciones = latest.filter((r) => r['categoría'] === 'Deducción') .sort((a, b) => a.importe - b.importe);
-
-  return { ingresos, deducciones, mes: maxMes };
+  const availableMonths = Object.keys(byMonth).map(Number).sort((a, b) => a - b);
+  return { byMonth, availableMonths };
 };
 
 /**

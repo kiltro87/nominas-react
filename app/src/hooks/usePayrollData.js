@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { payrollData, mockConcepts } from '../data/payrollData';
+import { payrollData, mockConceptsByYear } from '../data/payrollData';
 import { calcTrend } from '../utils/trends';
 import { calculateIrpfBreakdownMadrid } from '../utils/irpf';
-import { fetchPayrollDataFromSupabase, fetchLatestMonthConcepts } from '../services/payrollRepository';
+import { fetchPayrollDataFromSupabase, fetchAllYearConcepts } from '../services/payrollRepository';
 
 export const usePayrollData = (selectedYear, enabled = true, forceMock = false) => {
   const [dataset, setDataset] = useState(payrollData);
@@ -41,12 +41,12 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     };
   }, [enabled, forceMock]);
 
-  // Fetch per-concept breakdown whenever year or auth state changes (real data only).
+  // Fetch per-concept breakdown for all months whenever year changes (real data only).
   // 'all' and mock modes are handled entirely in useMemo — no setState here.
   useEffect(() => {
     if (forceMock || !enabled || import.meta.env.MODE === 'test' || selectedYear === 'all') return;
     let cancelled = false;
-    fetchLatestMonthConcepts(selectedYear).then((data) => {
+    fetchAllYearConcepts(selectedYear).then((data) => {
       if (!cancelled) setFetchedConcepts(data);
     });
     return () => { cancelled = true; };
@@ -58,12 +58,13 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       ? { source: 'mock-manual', error: null, updatedAt: null }
       : sourceStatus;
 
-    // Concepts: 'all' → empty; mock mode → static mock data; otherwise → fetched from Supabase
-    const EMPTY_CONCEPTS = { ingresos: [], deducciones: [], mes: null };
-    const latestMonthConcepts = selectedYear === 'all'
-      ? EMPTY_CONCEPTS
+    // Concepts: 'all' → empty; mock mode → static mock data; otherwise → fetched from Supabase.
+    // Shape: { byMonth: Record<number, {ingresos, deducciones}>, availableMonths: number[] }
+    const EMPTY_YEAR_CONCEPTS = { byMonth: {}, availableMonths: [] };
+    const conceptsByYear = selectedYear === 'all'
+      ? EMPTY_YEAR_CONCEPTS
       : forceMock || !fetchedConcepts
-        ? (mockConcepts[selectedYear] ?? mockConcepts['2025'] ?? EMPTY_CONCEPTS)
+        ? (mockConceptsByYear[selectedYear] ?? mockConceptsByYear['2025'] ?? EMPTY_YEAR_CONCEPTS)
         : fetchedConcepts;
     const availableYears = Object.keys(effectiveDataset.annualByYear).sort(
       (a, b) => Number(b) - Number(a),
@@ -103,7 +104,7 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
         irpf: calculateIrpfBreakdownMadrid(0),
         history: [],
         vestingSchedule: [],
-        latestMonthConcepts: { ingresos: [], deducciones: [], mes: null },
+        conceptsByYear: EMPTY_YEAR_CONCEPTS,
         trend: () => null,
         sourceStatus: effectiveSourceStatus,
       };
@@ -180,7 +181,7 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
         irpf: calculateIrpfBreakdownMadrid(estimatedTaxableBaseAll),
         history,
         vestingSchedule: effectiveDataset.vestingSchedule,
-        latestMonthConcepts,
+        conceptsByYear,
         trend: () => null,
         sourceStatus: effectiveSourceStatus,
       };
@@ -210,7 +211,7 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       irpf,
       history,
       vestingSchedule: effectiveDataset.vestingSchedule,
-      latestMonthConcepts,
+      conceptsByYear,
       trend,
       sourceStatus: effectiveSourceStatus,
     };

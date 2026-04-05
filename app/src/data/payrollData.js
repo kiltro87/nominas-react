@@ -92,32 +92,57 @@ export const payrollData = {
   ],
 };
 
-/** Mock per-concept breakdown for the "Mi Nómina" tab (keyed by year). */
-export const mockConcepts = {
+/**
+ * Builds a mock month entry for one payslip.
+ * @param {number} base - Base salary
+ * @param {number} complement
+ * @param {number|null} bonus - Bonus amount (only in March)
+ * @param {number} irpfAmt - IRPF deduction (negative)
+ * @param {number} ssAmt - SS deduction (negative)
+ */
+const mockMonth = (base, complement, bonus, irpfAmt, ssAmt) => ({
+  ingresos: [
+    { concepto: 'Salario Base',       'categoría': 'Ingreso',   'subcategoría': 'Salario',            importe: base },
+    { concepto: 'Complemento Mejora', 'categoría': 'Ingreso',   'subcategoría': 'Complemento',        importe: complement },
+    ...(bonus ? [{ concepto: 'Bonus por Objetivos', 'categoría': 'Ingreso', 'subcategoría': 'Variable', importe: bonus }] : []),
+  ],
+  deducciones: [
+    { concepto: 'Retención IRPF',               'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF', importe: irpfAmt },
+    { concepto: 'Seguridad Social',             'categoría': 'Deducción', 'subcategoría': 'Seguridad Social', importe: ssAmt },
+    { concepto: 'Plan de Pensiones (empleado)', 'categoría': 'Deducción', 'subcategoría': 'Diferido',         importe: -200 },
+    { concepto: 'Seguro Médico (Flexible)',      'categoría': 'Deducción', 'subcategoría': 'Diferido',         importe: -80 },
+  ],
+});
+
+/** Mock per-concept breakdown for the "Mi Nómina" tab — grouped by year → month. */
+export const mockConceptsByYear = {
   '2025': {
-    mes: 9,
-    ingresos: [
-      { concepto: 'Salario Base',          'categoría': 'Ingreso', 'subcategoría': 'Salario',     importe:  7500 },
-      { concepto: 'Complemento Mejora',    'categoría': 'Ingreso', 'subcategoría': 'Complemento', importe:   400 },
-      { concepto: 'Bonus por Objetivos',   'categoría': 'Ingreso', 'subcategoría': 'Variable',    importe:  1200 },
-    ],
-    deducciones: [
-      { concepto: 'Retención IRPF',        'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF',    importe: -2900 },
-      { concepto: 'Seguridad Social',      'categoría': 'Deducción', 'subcategoría': 'Seguridad Social',    importe: -1050 },
-      { concepto: 'Ret. Flexible (Seguro + Tickets)', 'categoría': 'Deducción', 'subcategoría': 'Diferido', importe:  -270 },
-    ],
+    availableMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    byMonth: {
+      1: mockMonth(7500, 400, null,   -2850, -1050),
+      2: mockMonth(7500, 400, null,   -2850, -1050),
+      3: mockMonth(7500, 400, 1200,   -3220, -1050),
+      4: mockMonth(7500, 400, null,   -2850, -1050),
+      5: mockMonth(7500, 400, null,   -2850, -1050),
+      6: mockMonth(15000, 400, null,  -5700, -1050), // paga extra
+      7: mockMonth(7500, 400, null,   -2900, -1050),
+      8: mockMonth(7500, 400, null,   -2900, -1050),
+      9: mockMonth(7500, 400, null,   -2900, -1050),
+    },
   },
   '2024': {
-    mes: 9,
-    ingresos: [
-      { concepto: 'Salario Base',        'categoría': 'Ingreso', 'subcategoría': 'Salario',     importe: 7000 },
-      { concepto: 'Complemento Mejora',  'categoría': 'Ingreso', 'subcategoría': 'Complemento', importe:  350 },
-      { concepto: 'Bonus por Objetivos', 'categoría': 'Ingreso', 'subcategoría': 'Variable',    importe:  850 },
-    ],
-    deducciones: [
-      { concepto: 'Retención IRPF',   'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF', importe: -2800 },
-      { concepto: 'Seguridad Social', 'categoría': 'Deducción', 'subcategoría': 'Seguridad Social', importe:  -875 },
-    ],
+    availableMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    byMonth: {
+      1: mockMonth(7000, 350, null,   -2650, -975),
+      2: mockMonth(7000, 350, null,   -2650, -975),
+      3: mockMonth(7000, 350, 850,    -2900, -975),
+      4: mockMonth(7000, 350, null,   -2650, -975),
+      5: mockMonth(7000, 350, null,   -2650, -975),
+      6: mockMonth(14000, 350, null,  -5300, -975), // paga extra
+      7: mockMonth(7000, 350, null,   -2700, -975),
+      8: mockMonth(7000, 350, null,   -2700, -975),
+      9: mockMonth(7000, 350, null,   -2700, -975),
+    },
   },
 };
 

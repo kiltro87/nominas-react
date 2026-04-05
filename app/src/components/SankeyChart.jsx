@@ -149,10 +149,10 @@ export default function SankeyChart({ annual, history, isPrivate = false }) {
     ) : null;
 
   return (
+    <div style={{ aspectRatio: `${W}/${H}` }} className="w-full">
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      style={{ height: H }}
+      className="w-full h-full"
       aria-label="Sankey: distribución mensual de nómina"
     >
       {/* ── Flows C1 → C2 ──────────────────────────────────────────── */}
@@ -276,5 +276,6 @@ export default function SankeyChart({ annual, history, isPrivate = false }) {
         );
       })}
     </svg>
+    </div>
   );
 }
