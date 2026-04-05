@@ -17,7 +17,7 @@ export const fetchAllYearConcepts = async (year) => {
   const { data, error } = await supabase
     .from('nominas')
     .select('id, concepto, "categoría", "subcategoría", importe, mes')
-    .eq('anio', Number(year))
+    .eq('año', Number(year))
     .order('mes', { ascending: true });
 
   if (error || !data?.length) return EMPTY;

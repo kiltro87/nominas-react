@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+pipeline/.pytest_cache/
+pipeline/.ruff_cache/
+pipeline/**/*.pyc
+
+# Node / Vite
+app/node_modules/
+app/dist/
+app/dist-ssr/
+app/.env
+app/.env.*
+!app/.env.example
+app/*.local
+
+# Credentials & secrets (never commit)
+pipeline/config.json
+pipeline/credentials.json
+pipeline/token.json
+*.pem
+*.key
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.sw?

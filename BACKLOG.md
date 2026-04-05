@@ -6,8 +6,8 @@ Tareas pendientes ordenadas por prioridad.
 
 ## Pipeline
 
-- [ ] **Alertar al usuario cuando el extractor detecta un concepto no clasificado**
-  Actualmente los conceptos desconocidos se guardan con `Subcategoría = "No clasificado"` sin ninguna señal visible. El ingestor debería emitir un aviso (log + resumen al final de cada ejecución) listando los conceptos nuevos para que el usuario pueda añadirlos a `Categorias de conceptos.json`.
+- [ ] **Alertar al usuario cuando el extractor detecta un concepto no clasificado al procesar un PDF**
+  El pipeline guarda conceptos nuevos con `subcategoría = ''` y la UI los resalta con el badge "Sin categoría" para edición inline. Sin embargo, el ingestor podría emitir además un **resumen en el log** con los conceptos pendientes de clasificar al final de cada ejecución, para que el operador sepa actuar sin abrir la app.
 
 ---
 
@@ -69,3 +69,17 @@ Tareas pendientes ordenadas por prioridad.
 - [ ] **Leer documentos de calendario de liberación de RSU**
   Procesar los documentos de vesting schedule (PDFs o similares) para extraer las fechas
   y cantidades de cada liberación futura de RSU. Mostrar una línea de tiempo en la app.
+
+---
+
+## Completado
+
+- [x] **Sincronización Automatizada de Divisas (BDE API)** — Botón de sincronización USD/EUR eliminado; la sincronización se dispara automáticamente al subir el Excel de E*TRADE. Tabla `exchange_rates` en Supabase.
+- [x] **Procesamiento Detallado de RSU y ESPP** — Parser de `BenefitHistory.xlsx` con lookback de 10 días sobre BDE, tabla `stock_transactions`, preview con errores.
+- [x] **Motor de Validación y Lookback de 10 días** — Implementado en `stockTransactionsRepository.js`.
+- [x] **Vista histórica (todos los años)** — Selector de año + vista agregada en `usePayrollData.js`.
+- [x] **Diagrama Sankey de distribución mensual** — `SankeyChart.jsx` con 3 columnas, datos reales del mes seleccionado via `computeSankeyFromConcepts`.
+- [x] **Rediseño UI** — Sidebar fijo + topbar, renombrado a NóminaClara, eliminados tabs de Simuladores.
+- [x] **Migrar categorías de conceptos a Supabase** — Tabla `concept_categories` (`supabase/concept_categories.sql`). El extractor carga reglas desde Supabase con fallback al JSON local.
+- [x] **Editor inline de conceptos desconocidos** — Badge "Sin categoría" + lápiz en hover; guarda cambios en `nominas` y en `concept_categories` para clasificación automática futura.
+- [x] **Selector de mes en Mi Nómina** — Siempre visible cuando hay un año seleccionado; deshabilitado si no hay meses disponibles.

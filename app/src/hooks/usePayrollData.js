@@ -11,7 +11,8 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     error: null,
     updatedAt: null,
   });
-  // Holds concepts fetched from Supabase (null = not yet fetched / not applicable)
+  // Holds concepts fetched from Supabase, keyed by year to avoid cross-year stale reads.
+  // Shape: { year: string|number, data: { byMonth, availableMonths } } | null
   const [fetchedConcepts, setFetchedConcepts] = useState(null);
 
   useEffect(() => {
@@ -42,12 +43,12 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
   }, [enabled, forceMock]);
 
   // Fetch per-concept breakdown for all months whenever year changes (real data only).
-  // 'all' and mock modes are handled entirely in useMemo — no setState here.
+  // We store { year, data } so the useMemo can reject stale results from a previous year.
   useEffect(() => {
     if (forceMock || !enabled || import.meta.env.MODE === 'test' || selectedYear === 'all') return;
     let cancelled = false;
     fetchAllYearConcepts(selectedYear).then((data) => {
-      if (!cancelled) setFetchedConcepts(data);
+      if (!cancelled) setFetchedConcepts({ year: selectedYear, data });
     });
     return () => { cancelled = true; };
   }, [selectedYear, enabled, forceMock]);
@@ -59,13 +60,17 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       : sourceStatus;
 
     // Concepts: 'all' → empty; mock mode → static mock data; otherwise → fetched from Supabase.
+    // fetchedConcepts is { year, data } — only used when the stored year matches selectedYear,
+    // preventing stale data from a previous year from bleeding into the current view.
     // Shape: { byMonth: Record<number, {ingresos, deducciones}>, availableMonths: number[] }
     const EMPTY_YEAR_CONCEPTS = { byMonth: {}, availableMonths: [] };
+    const fetchedForThisYear =
+      fetchedConcepts?.year === selectedYear ? fetchedConcepts.data : null;
     const conceptsByYear = selectedYear === 'all'
       ? EMPTY_YEAR_CONCEPTS
-      : forceMock || !fetchedConcepts
+      : forceMock || !fetchedForThisYear
         ? (mockConceptsByYear[selectedYear] ?? mockConceptsByYear['2025'] ?? EMPTY_YEAR_CONCEPTS)
-        : fetchedConcepts;
+        : fetchedForThisYear;
     const availableYears = Object.keys(effectiveDataset.annualByYear).sort(
       (a, b) => Number(b) - Number(a),
     );
