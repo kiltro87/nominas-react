@@ -41,13 +41,10 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     };
   }, [enabled, forceMock]);
 
-  // Fetch per-concept breakdown whenever year or auth state changes (real data only)
+  // Fetch per-concept breakdown whenever year or auth state changes (real data only).
+  // 'all' and mock modes are handled entirely in useMemo — no setState here.
   useEffect(() => {
-    if (forceMock || !enabled || import.meta.env.MODE === 'test') return;
-    if (selectedYear === 'all') {
-      setFetchedConcepts(null);
-      return;
-    }
+    if (forceMock || !enabled || import.meta.env.MODE === 'test' || selectedYear === 'all') return;
     let cancelled = false;
     fetchLatestMonthConcepts(selectedYear).then((data) => {
       if (!cancelled) setFetchedConcepts(data);
@@ -61,11 +58,13 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       ? { source: 'mock-manual', error: null, updatedAt: null }
       : sourceStatus;
 
-    // Concepts: use mock data when in mock mode, fetched data otherwise
-    const yr = selectedYear === 'all' ? '2025' : selectedYear;
-    const latestMonthConcepts = forceMock || !fetchedConcepts
-      ? (mockConcepts[yr] ?? mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null })
-      : fetchedConcepts;
+    // Concepts: 'all' → empty; mock mode → static mock data; otherwise → fetched from Supabase
+    const EMPTY_CONCEPTS = { ingresos: [], deducciones: [], mes: null };
+    const latestMonthConcepts = selectedYear === 'all'
+      ? EMPTY_CONCEPTS
+      : forceMock || !fetchedConcepts
+        ? (mockConcepts[selectedYear] ?? mockConcepts['2025'] ?? EMPTY_CONCEPTS)
+        : fetchedConcepts;
     const availableYears = Object.keys(effectiveDataset.annualByYear).sort(
       (a, b) => Number(b) - Number(a),
     );
