@@ -31,6 +31,16 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import ProgressBar from './components/ProgressBar';
 import SankeyChart from './components/SankeyChart';
 import { computeSankeyFromConcepts } from './utils/sankeyMonthData';
@@ -232,7 +242,6 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
   const [selectedNominaMonth, setSelectedNominaMonth] = useState(null); // null = latest
-  const [evolHovered, setEvolHovered] = useState(null); // { i, h, x } for evolution chart tooltip
   // Inline concept editor state: null = closed; otherwise { id, item, category, subcategory }
   const [editingConcept, setEditingConcept] = useState(null);
   const [conceptSaving, setConceptSaving] = useState(false);
@@ -1597,110 +1606,58 @@ const App = () => {
               </h2>
 
               <div className="mt-2 mb-10">
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
-                    <span className="w-3 h-3 rounded-full bg-blue-500 shrink-0" /> Salario Bruto
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-rose-500 dark:text-rose-400">
-                    <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" /> Impuestos (IRPF + SS)
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" /> Neto Percibido
-                  </span>
-                  <span className="ml-auto text-xs text-slate-400 italic">
-                    {year === 'all' ? 'Datos agregados anuales' : `${history.length} mes${history.length !== 1 ? 'es' : ''} con datos en ${year}`}
-                  </span>
-                </div>
-
-                {/* Chart: aspect-ratio wrapper prevents distortion; max-width prevents excessive size */}
-                {(() => {
-                  const maxVal = Math.max(...history.map((x) => Math.max(x.bruto, x.neto, x.tax)), 1);
-                  const ticks = [0, 0.25, 0.5, 0.75, 1];
-                  const ptX = (i) => history.length === 1 ? 50 : (i / (history.length - 1)) * 96 + 2;
-                  const toPoints = (field) =>
-                    history.map((h, i) => `${ptX(i)},${30 - (h[field] / maxVal) * 26}`).join(' ');
-                  return (
-                    <div style={{ aspectRatio: '100/34', maxWidth: '900px' }} className="w-full mx-auto relative">
-                      <svg
-                        viewBox="0 0 100 34"
-                        className="w-full h-full bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800"
-                      >
-                        {ticks.map((t) => {
-                          const y = 30 - 26 * t;
-                          return (
-                            <g key={`tick-${t}`}>
-                              <line x1="2" x2="98" y1={y} y2={y} stroke="#cbd5e1" strokeWidth="0.25" />
-                              <text x="0.5" y={y + 0.9} fontSize="1.8" fill="#64748b">
-                                {Math.round(maxVal * t)}
-                              </text>
-                            </g>
-                          );
-                        })}
-                        <polyline fill="none" stroke="#3b82f6" strokeWidth="0.8" points={toPoints('bruto')} />
-                        <polyline fill="none" stroke="#f43f5e" strokeWidth="0.8" points={toPoints('tax')} />
-                        <polyline fill="none" stroke="#10b981" strokeWidth="0.8" points={toPoints('neto')} />
-                        {history.map((h, i) => {
-                          const x = ptX(i);
-                          const isHov = evolHovered?.i === i;
-                          const yB = 30 - (h.bruto / maxVal) * 26;
-                          const yT = 30 - (h.tax / maxVal) * 26;
-                          const yN = 30 - (h.neto / maxVal) * 26;
-                          return (
-                            <g key={`pts-${i}`}
-                              onMouseEnter={() => setEvolHovered({ i, h, x })}
-                              onMouseLeave={() => setEvolHovered(null)}
-                              style={{ cursor: 'crosshair' }}
-                            >
-                              {/* Wide invisible hit area per column */}
-                              <line x1={x} x2={x} y1="2" y2="31" stroke="transparent" strokeWidth="5" />
-                              {isHov && <line x1={x} x2={x} y1="2" y2="31" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="1,0.8" />}
-                              <circle cx={x} cy={yB} r={isHov ? '1.1' : '0.7'} fill="#3b82f6" />
-                              <circle cx={x} cy={yT} r={isHov ? '1.1' : '0.7'} fill="#f43f5e" />
-                              <circle cx={x} cy={yN} r={isHov ? '1.1' : '0.7'} fill="#10b981" />
-                            </g>
-                          );
-                        })}
-                      </svg>
-
-                      {/* Custom tooltip overlay */}
-                      {evolHovered && (() => {
-                        const leftPct = evolHovered.x; // already in 0-100 SVG units = percentage
-                        return (
-                          <div
-                            className="absolute z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg px-3 py-2.5 text-xs pointer-events-none"
-                            style={{
-                              left: `${leftPct}%`,
-                              bottom: '105%',
-                              transform: 'translateX(-50%)',
-                              minWidth: '140px',
-                            }}
-                          >
-                            <p className="font-bold text-slate-700 dark:text-slate-200 mb-1.5">
-                              {evolHovered.h.month}{year !== 'all' ? ` ${year}` : ''}
-                            </p>
-                            <p className="text-blue-600 dark:text-blue-400">
-                              Bruto: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.bruto)}
-                            </p>
-                            <p className="text-rose-500">
-                              Impuestos: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.tax)}
-                            </p>
-                            <p className="text-emerald-600 dark:text-emerald-400 font-bold">
-                              Neto: {isPrivacyMode ? '•••' : formatCurrency(evolHovered.h.neto)}
-                            </p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()}
-
-                {/* X-axis month labels */}
-                <div style={{ maxWidth: '900px' }} className="flex justify-between mx-auto mt-2 text-[11px] text-slate-400 font-semibold">
-                  {history.map((h, i) => (
-                    <span key={`${h.month}-${i}`}>{h.month}</span>
-                  ))}
-                </div>
+                <p className="text-xs text-slate-400 italic mb-4 text-right">
+                  {year === 'all' ? 'Datos agregados anuales' : `${history.length} mes${history.length !== 1 ? 'es' : ''} con datos en ${year}`}
+                </p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart
+                    data={history.map((h) => ({
+                      label: h.month,
+                      bruto: h.bruto,
+                      impuestos: h.tax,
+                      neto: h.neto,
+                    }))}
+                    margin={{ top: 8, right: 24, bottom: 8, left: 16 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e2e8f0' }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => isPrivacyMode ? '•••' : (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v)}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={48}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => {
+                        if (isPrivacyMode) return ['•••', name];
+                        const labels = { bruto: 'Salario Bruto', impuestos: 'Impuestos', neto: 'Neto Percibido' };
+                        return [formatCurrency(value), labels[name] ?? name];
+                      }}
+                      labelFormatter={(label) => <span className="font-bold">{label}</span>}
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                      }}
+                    />
+                    <Legend
+                      formatter={(value) => {
+                        const labels = { bruto: 'Salario Bruto', impuestos: 'Impuestos (IRPF+SS)', neto: 'Neto Percibido' };
+                        return <span style={{ fontSize: 12, color: '#64748b' }}>{labels[value] ?? value}</span>;
+                      }}
+                    />
+                    <Line type="monotone" dataKey="bruto"     stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="impuestos" stroke="#f43f5e" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="neto"      stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
 
               <div className="mt-10 overflow-x-auto">
