@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BarChart3,
   Briefcase,
+  Calculator,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -11,9 +12,12 @@ import {
   Download,
   Eye,
   EyeOff,
+  FileText,
   Info,
+  LayoutDashboard,
   Landmark,
   Loader2,
+  LogOut,
   Percent,
   PieChart as PieChartIcon,
   PiggyBank,
@@ -26,6 +30,7 @@ import {
   Upload,
   Wallet,
 } from 'lucide-react';
+import PayrollAnatomy from './components/PayrollAnatomy';
 import ProgressBar from './components/ProgressBar';
 import SankeyChart from './components/SankeyChart';
 import StatCard from './components/StatCard';
@@ -242,7 +247,7 @@ const App = () => {
     updatePassword,
     signOut,
   } = useSupabaseAuth();
-  const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, trend, sourceStatus } =
+  const { year, availableYears, annual, irpf, history, selectedData, vestingSchedule, latestMonthConcepts, trend, sourceStatus } =
     usePayrollData(selectedYear, isAuthenticated, useMockData);
   const { price: crmPrice } = useStockPrice('CRM');
   const { portfolio } = usePortfolioData(isAuthenticated && !useMockData, useMockData);
@@ -558,108 +563,240 @@ const App = () => {
     );
   }
 
+  // ── Navigation config ────────────────────────────────────────────────────
+  const NAV_TABS = [
+    { id: 'overview',    label: 'Visión General', icon: LayoutDashboard },
+    { id: 'nomina',      label: 'Mi Nómina',      icon: FileText        },
+    { id: 'evolution',   label: 'Evolución',      icon: BarChart3       },
+    { id: 'tax',         label: 'Fiscalidad',     icon: Landmark        },
+    { id: 'investments', label: 'Inversiones',    icon: Briefcase       },
+    { id: 'simuladores', label: 'Simuladores',    icon: Calculator      },
+  ];
+
+  const PAGE_META = {
+    overview:    { title: 'Resumen Ejecutivo',      sub: 'Vista general de tu compensación' },
+    nomina:      { title: 'Análisis de Nómina',     sub: `Último mes disponible${latestMonthConcepts.mes ? ` · Mes ${latestMonthConcepts.mes}` : ''}` },
+    evolution:   { title: 'Evolución e Histórico',  sub: 'Tendencias y progresión salarial' },
+    tax:         { title: 'Tramos e Impuestos',     sub: 'Fiscalidad y eficiencia tributaria' },
+    investments: { title: 'Cartera e Inversiones',  sub: `Sesión: ${user?.email} · Fuente: Supabase` },
+    simuladores: { title: 'Simuladores',            sub: 'Herramientas de planificación financiera' },
+  };
+
+  const pageMeta = PAGE_META[activeTab] ?? PAGE_META.overview;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans p-4 md:p-8">
-      <header className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-            Payroll Intelligence
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Analisis detallado de compensacion y eficiencia fiscal
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Sesion: {user?.email}</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Fuente: {sourceStatus.source}
-            {sourceStatus.updatedAt ? ` · Actualizado: ${new Date(sourceStatus.updatedAt).toLocaleString('es-ES')}` : ''}
-          </p>
-        </div>
+    <div className="min-h-screen flex bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
 
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-            className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400"
-            title="Modo Privacidad"
-          >
-            {isPrivacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
-          </button>
-          <button
-            onClick={() => setUseMockData((v) => !v)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
-              useMockData
-                ? 'bg-amber-100 text-amber-800 border-amber-200'
-                : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-            }`}
-            title="Alternar entre datos reales y mock"
-          >
-            {useMockData ? 'MOCK ON' : 'MOCK OFF'}
-          </button>
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors">
-            <Calendar size={18} className="text-blue-500" />
-            <select
-              value={year}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="font-semibold text-sm bg-transparent outline-none cursor-pointer"
-              aria-label="Seleccionar año"
-            >
-              <option value="all" className="text-slate-900">Todos los años</option>
-              {availableYears.map((itemYear) => (
-                <option key={itemYear} value={itemYear} className="text-slate-900">
-                  {itemYear}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} />
+      {/* ── Sidebar ──────────────────────────────────────────────────── */}
+      <aside className="w-56 shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen sticky top-0 z-20">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-extrabold text-sm shrink-0">
+            PI
           </div>
-          <button
-            onClick={handleExport}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center gap-2"
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">Exportar</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-2 rounded-xl text-sm font-semibold border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            Cerrar sesion
-          </button>
+          <span className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">
+            PayrollIntel
+          </span>
         </div>
-      </header>
 
-      {sourceStatus.error && (
-        <div className="max-w-7xl mx-auto mb-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3 text-sm">
-          No se pudo leer Supabase ({sourceStatus.error}). Se usa dataset mock.
-        </div>
-      )}
-
-      <main className="max-w-7xl mx-auto space-y-8">
-        <div className="flex gap-6 border-b border-slate-200 dark:border-slate-800 overflow-x-auto hide-scrollbar">
-          {[
-            { id: 'overview', label: 'VISION GENERAL', icon: PieChartIcon },
-            { id: 'tax', label: 'IMPUESTOS', icon: Landmark },
-            { id: 'investments', label: 'INVERSIONES', icon: Briefcase },
-            { id: 'evolution', label: 'EVOLUCION', icon: BarChart3 },
-          ].map((tab) => (
+        {/* Nav items */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          {NAV_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? 'text-blue-600'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              <tab.icon size={16} />
+              <tab.icon size={17} className="shrink-0" />
               {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full" />
-              )}
             </button>
           ))}
-        </div>
+        </nav>
 
+        {/* Footer: user + logout */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-[11px] text-slate-400 truncate mb-2" title={user?.email}>{user?.email}</p>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-xs text-slate-400 hover:text-rose-500 transition-colors"
+          >
+            <LogOut size={13} /> Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Content area ─────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+
+        {/* Topbar */}
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between gap-4 sticky top-0 z-10">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight">{pageMeta.title}</h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {sourceStatus.updatedAt
+                ? `Datos sincronizados con Supabase · ${new Date(sourceStatus.updatedAt).toLocaleDateString('es-ES')}`
+                : pageMeta.sub}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Privacy */}
+            <button
+              onClick={() => setIsPrivacyMode(!isPrivacyMode)}
+              className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-500"
+              title="Modo Privacidad"
+            >
+              {isPrivacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+
+            {/* Mock toggle */}
+            <button
+              onClick={() => setUseMockData((v) => !v)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                useMockData
+                  ? 'bg-amber-100 text-amber-800 border-amber-200'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+              }`}
+              title="Alternar entre datos reales y mock"
+            >
+              {useMockData ? 'MOCK ON' : 'MOCK OFF'}
+            </button>
+
+            {/* Year selector */}
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl">
+              <Calendar size={15} className="text-indigo-500 shrink-0" />
+              <select
+                value={year}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="text-sm font-semibold bg-transparent outline-none cursor-pointer"
+                aria-label="Seleccionar año"
+              >
+                <option value="all" className="text-slate-900">Todos los años</option>
+                {availableYears.map((itemYear) => (
+                  <option key={itemYear} value={itemYear} className="text-slate-900">{itemYear}</option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="text-slate-400" />
+            </div>
+
+            {/* Export */}
+            <button
+              onClick={handleExport}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
+            >
+              <Download size={15} />
+              Exportar Reporte
+            </button>
+          </div>
+        </header>
+
+        {sourceStatus.error && (
+          <div className="mx-8 mt-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3 text-sm">
+            No se pudo leer Supabase ({sourceStatus.error}). Se usa dataset mock.
+          </div>
+        )}
+
+        {/* ── Tab content ──────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto p-8 space-y-8">
+
+        {/* ── Mi Nómina ─────────────────────────────────────────────── */}
+        {activeTab === 'nomina' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Anatomía Visual */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6">
+                Anatomía Visual de tu Nómina (mes actual)
+              </h2>
+              <PayrollAnatomy
+                monthly={selectedData.monthly}
+                annual={annual}
+                history={history}
+                isPrivate={isPrivacyMode}
+              />
+            </div>
+
+            {/* Conceptos tables */}
+            {year === 'all' ? (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                <p className="text-sm text-slate-400">
+                  Selecciona un año concreto para ver el desglose de conceptos del último mes.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Conceptos de Devengo */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                    Conceptos de Devengo
+                  </h3>
+                  {latestMonthConcepts.ingresos.length === 0 ? (
+                    <p className="text-sm text-slate-400">Sin datos de conceptos.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {latestMonthConcepts.ingresos.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
+                            {c['subcategoría'] && (
+                              <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                            )}
+                          </div>
+                          <p className={`text-sm font-bold ${c.importe > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-indigo-600'}`}>
+                            {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                          </p>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between pt-3">
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Bruto</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                          {isPrivacyMode ? '•••' : `${latestMonthConcepts.ingresos.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deducciones y Retenciones */}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+                    Deducciones y Retenciones
+                  </h3>
+                  {latestMonthConcepts.deducciones.length === 0 ? (
+                    <p className="text-sm text-slate-400">Sin datos de deducciones.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {latestMonthConcepts.deducciones.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{c.concepto}</p>
+                            {c['subcategoría'] && (
+                              <p className="text-xs text-slate-400">{c['subcategoría']}</p>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-rose-600">
+                            {isPrivacyMode ? '•••' : `${c.importe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                          </p>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between pt-3">
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Total Deducido</p>
+                        <p className="text-sm font-bold text-rose-600">
+                          {isPrivacyMode ? '•••' : `${latestMonthConcepts.deducciones.reduce((s, c) => s + c.importe, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Visión General ────────────────────────────────────────── */}
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1391,7 +1528,28 @@ const App = () => {
             </div>
           </div>
         )}
-      </main>
+
+        {/* ── Simuladores (placeholder) ─────────────────────────── */}
+        {activeTab === 'simuladores' && (
+          <div className="animate-in fade-in duration-500 flex flex-col items-center justify-center py-24 gap-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+              <Calculator className="text-indigo-500" size={32} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold mb-2">Simuladores</h2>
+              <p className="text-slate-400 text-sm max-w-sm">
+                Herramientas de planificación: simulador de bonus, impacto de subida salarial,
+                proyección de jubilación. Próximamente.
+              </p>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-4 py-1.5 rounded-full">
+              Próximamente
+            </span>
+          </div>
+        )}
+
+        </main>
+      </div>
     </div>
   );
 };

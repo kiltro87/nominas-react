@@ -1,6 +1,36 @@
 import { hasSupabaseConfig, supabase } from './supabaseClient';
 
 /**
+ * Fetches the individual payroll line-items (conceptos) for the latest month
+ * of the given year from the `nominas` table.
+ *
+ * Returns two arrays: `ingresos` (categoría = 'Ingreso') and
+ * `deducciones` (categoría = 'Deducción'), each sorted by |importe| desc.
+ *
+ * @param {string|number} year - The selected year (e.g. '2025').
+ * @returns {Promise<{ ingresos: Array, deducciones: Array, mes: number|null }>}
+ */
+export const fetchLatestMonthConcepts = async (year) => {
+  if (!hasSupabaseConfig || !supabase) return { ingresos: [], deducciones: [], mes: null };
+
+  const { data, error } = await supabase
+    .from('nominas')
+    .select('concepto, "categoría", "subcategoría", importe, mes')
+    .eq('anio', Number(year))
+    .order('mes', { ascending: false });
+
+  if (error || !data?.length) return { ingresos: [], deducciones: [], mes: null };
+
+  const maxMes = Math.max(...data.map((r) => r.mes));
+  const latest = data.filter((r) => r.mes === maxMes);
+
+  const ingresos    = latest.filter((r) => r['categoría'] === 'Ingreso')   .sort((a, b) => b.importe - a.importe);
+  const deducciones = latest.filter((r) => r['categoría'] === 'Deducción') .sort((a, b) => a.importe - b.importe);
+
+  return { ingresos, deducciones, mes: maxMes };
+};
+
+/**
  * Transforms a raw `payroll_metrics_mv` row into the shape expected by the app.
  *
  * @param {object} row - Raw row from Supabase.

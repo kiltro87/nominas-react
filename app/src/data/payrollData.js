@@ -92,6 +92,35 @@ export const payrollData = {
   ],
 };
 
+/** Mock per-concept breakdown for the "Mi Nómina" tab (keyed by year). */
+export const mockConcepts = {
+  '2025': {
+    mes: 9,
+    ingresos: [
+      { concepto: 'Salario Base',          'categoría': 'Ingreso', 'subcategoría': 'Salario',     importe:  7500 },
+      { concepto: 'Complemento Mejora',    'categoría': 'Ingreso', 'subcategoría': 'Complemento', importe:   400 },
+      { concepto: 'Bonus por Objetivos',   'categoría': 'Ingreso', 'subcategoría': 'Variable',    importe:  1200 },
+    ],
+    deducciones: [
+      { concepto: 'Retención IRPF',        'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF',    importe: -2900 },
+      { concepto: 'Seguridad Social',      'categoría': 'Deducción', 'subcategoría': 'Seguridad Social',    importe: -1050 },
+      { concepto: 'Ret. Flexible (Seguro + Tickets)', 'categoría': 'Deducción', 'subcategoría': 'Diferido', importe:  -270 },
+    ],
+  },
+  '2024': {
+    mes: 9,
+    ingresos: [
+      { concepto: 'Salario Base',        'categoría': 'Ingreso', 'subcategoría': 'Salario',     importe: 7000 },
+      { concepto: 'Complemento Mejora',  'categoría': 'Ingreso', 'subcategoría': 'Complemento', importe:  350 },
+      { concepto: 'Bonus por Objetivos', 'categoría': 'Ingreso', 'subcategoría': 'Variable',    importe:  850 },
+    ],
+    deducciones: [
+      { concepto: 'Retención IRPF',   'categoría': 'Deducción', 'subcategoría': 'Tributación IRPF', importe: -2800 },
+      { concepto: 'Seguridad Social', 'categoría': 'Deducción', 'subcategoría': 'Seguridad Social', importe:  -875 },
+    ],
+  },
+};
+
 export const portfolioMockData = {
   transactions: [
     { id: 1,  file_name: 'getEsppConfirmation(1).pdf',        transaction_type: 'Adquisition ESPP', operation_date: '2020-02-18', aeat_fecha: '2020-02-18', award_number: null,     aeat_tipo: 'AD', aeat_num_titulos: 19, quantity:  19, net_amount_usd:  2134.56, conversion_rate: 1.0827, aeat_importe_eur:  1971.47, ordering: 20200218, cumulative_qty:  19 },

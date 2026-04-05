@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { payrollData } from '../data/payrollData';
+import { payrollData, mockConcepts } from '../data/payrollData';
 import { calcTrend } from '../utils/trends';
 import { calculateIrpfBreakdownMadrid } from '../utils/irpf';
-import { fetchPayrollDataFromSupabase } from '../services/payrollRepository';
+import { fetchPayrollDataFromSupabase, fetchLatestMonthConcepts } from '../services/payrollRepository';
 
 export const usePayrollData = (selectedYear, enabled = true, forceMock = false) => {
   const [dataset, setDataset] = useState(payrollData);
@@ -11,6 +11,9 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     error: null,
     updatedAt: null,
   });
+  const [latestMonthConcepts, setLatestMonthConcepts] = useState(
+    mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null },
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +41,24 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       cancelled = true;
     };
   }, [enabled, forceMock]);
+
+  // Fetch per-concept breakdown whenever year or auth state changes
+  useEffect(() => {
+    if (forceMock || !enabled || import.meta.env.MODE === 'test') {
+      const yr = selectedYear === 'all' ? '2025' : selectedYear;
+      setLatestMonthConcepts(mockConcepts[yr] ?? mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null });
+      return;
+    }
+    if (selectedYear === 'all') {
+      setLatestMonthConcepts({ ingresos: [], deducciones: [], mes: null });
+      return;
+    }
+    let cancelled = false;
+    fetchLatestMonthConcepts(selectedYear).then((data) => {
+      if (!cancelled) setLatestMonthConcepts(data);
+    });
+    return () => { cancelled = true; };
+  }, [selectedYear, enabled, forceMock]);
 
   return useMemo(() => {
     const effectiveDataset = forceMock ? payrollData : dataset;
@@ -82,6 +103,7 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
         irpf: calculateIrpfBreakdownMadrid(0),
         history: [],
         vestingSchedule: [],
+        latestMonthConcepts: { ingresos: [], deducciones: [], mes: null },
         trend: () => null,
         sourceStatus: effectiveSourceStatus,
       };
@@ -158,6 +180,7 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
         irpf: calculateIrpfBreakdownMadrid(estimatedTaxableBaseAll),
         history,
         vestingSchedule: effectiveDataset.vestingSchedule,
+        latestMonthConcepts,
         trend: () => null,
         sourceStatus: effectiveSourceStatus,
       };
@@ -187,8 +210,9 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       irpf,
       history,
       vestingSchedule: effectiveDataset.vestingSchedule,
+      latestMonthConcepts,
       trend,
       sourceStatus: effectiveSourceStatus,
     };
-  }, [selectedYear, dataset, sourceStatus, forceMock]);
+  }, [selectedYear, dataset, sourceStatus, forceMock, latestMonthConcepts]);
 };
