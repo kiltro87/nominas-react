@@ -41,9 +41,9 @@ def load_nominas_from_sheet() -> pd.DataFrame:
             service_role_key=cfg["supabase_service_role_key"],
             schema=cfg.get("supabase_schema", "public"),
         )
-        rows = client.select("nominas", columns="*", order="year.asc,month.asc,item.asc")
+        rows = client.select("payrolls", columns="*", order="year.asc,month.asc,item.asc")
     except Exception as exc:  # noqa: BLE001
-        st.warning(f"No se pudo cargar 'nominas' desde Supabase: {exc}")
+        st.warning(f"No se pudo cargar 'payrolls' desde Supabase: {exc}")
         return pd.DataFrame()
     if not rows:
         return pd.DataFrame()

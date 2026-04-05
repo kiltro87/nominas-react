@@ -81,5 +81,5 @@ Tareas pendientes ordenadas por prioridad.
 - [x] **Diagrama Sankey de distribución mensual** — `SankeyChart.jsx` con 3 columnas, datos reales del mes seleccionado via `computeSankeyFromConcepts`.
 - [x] **Rediseño UI** — Sidebar fijo + topbar, renombrado a NóminaClara, eliminados tabs de Simuladores.
 - [x] **Migrar categorías de conceptos a Supabase** — Tabla `concept_categories` (`supabase/concept_categories.sql`). El extractor carga reglas desde Supabase con fallback al JSON local.
-- [x] **Editor inline de conceptos desconocidos** — Badge "Sin categoría" + lápiz en hover; guarda cambios en `nominas` y en `concept_categories` para clasificación automática futura.
+- [x] **Editor inline de conceptos desconocidos** — Badge "Sin categoría" + lápiz en hover; guarda cambios en `payrolls` y en `concept_categories` para clasificación automática futura.
 - [x] **Selector de mes en Mi Nómina** — Siempre visible cuando hay un año seleccionado; deshabilitado si no hay meses disponibles.

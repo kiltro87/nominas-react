@@ -6,9 +6,9 @@
 --   1. extractor.py  — looks up category/subcategory during PDF parsing.
 --   2. The React UI  — loads subcategory options for the inline concept editor.
 --   3. payroll_metrics_mv.sql — NOT referenced directly (uses subcategoria column
---      on the nominas table instead), but kept in sync via the UI edit flow.
+--      on the payrolls table instead), but kept in sync via the UI edit flow.
 --
--- When the user edits an unmatched concept in the UI, both the nominas row and
+-- When the user edits an unmatched concept in the UI, both the payrolls row and
 -- this table are updated atomically so future imports resolve correctly.
 -- ─────────────────────────────────────────────────────────────────────────────
 

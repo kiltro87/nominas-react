@@ -251,7 +251,7 @@ def _extract_irpf_percentage(concept: str) -> float | None:
     return round(float(m.group(1).replace(",", ".")), 2)
 
 
-def to_nominas_rows(sheet_rows: List[Dict[str, Any]], file_id: str, file_name: str) -> List[Dict[str, Any]]:
+def to_payroll_rows(sheet_rows: List[Dict[str, Any]], file_id: str, file_name: str) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     irpf_pct: float | None = None
     for r in sheet_rows:
@@ -350,8 +350,8 @@ def process_new_payrolls(config_path: str, limit: int | None = None) -> Dict[str
 
             result = extract_payroll(str(temp_path))
             quality_alerts = build_file_quality_alerts(result)
-            nominas_rows = to_nominas_rows(result["sheet_rows"], file_id, file_name)
-            sheets.insert_rows("nominas", nominas_rows)
+            nominas_rows = to_payroll_rows(result["sheet_rows"], file_id, file_name)
+            sheets.insert_rows("payrolls", nominas_rows)
             period = result.get("periodo", {})
             year = period.get("year")
             month = period.get("month")

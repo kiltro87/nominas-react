@@ -15,7 +15,7 @@ Para la documentación completa del sistema consulta el [README raíz](../README
 | `nominas_app/services/supabase_client.py` | Cliente REST Supabase (select, insert, paginación) |
 | `nominas_app/services/config_loader.py` | Carga `config.json` o secrets de entorno |
 
-> Los KPIs **no se calculan en Python**. El pipeline inserta filas en la tabla `nominas` y Supabase se encarga de agregar todo a través de `payroll_metrics_mv`. `kpi_builder.py` y las herramientas de migración desde Google Sheets (`migrate_sheets_to_supabase.py`, `sheets_client.py`) ya no forman parte del proyecto.
+> Los KPIs **no se calculan en Python**. El pipeline inserta filas en la tabla `payrolls` y Supabase se encarga de agregar todo a través de la vista `payroll_metrics_mv`. `kpi_builder.py` y las herramientas de migración desde Google Sheets (`migrate_sheets_to_supabase.py`, `sheets_client.py`) ya no forman parte del proyecto.
 
 ---
 

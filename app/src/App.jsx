@@ -268,7 +268,7 @@ const App = () => {
     setEditingConcept(null);
   };
 
-  // Save inline concept edit: update nominas row + upsert concept_categories
+  // Save inline concept edit: update payrolls row + upsert concept_categories
   const handleSaveConcept = async () => {
     if (!editingConcept) return;
     setConceptSaving(true);

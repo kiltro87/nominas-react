@@ -2,7 +2,7 @@ import { hasSupabaseConfig, supabase } from './supabaseClient';
 
 /**
  * Fetches all payroll line-items (conceptos) for the given year from the
- * `nominas` table, grouped by month.
+ * `payrolls` table, grouped by month.
  *
  * @param {string|number} year - The selected year (e.g. '2025').
  * @returns {Promise<{
@@ -15,7 +15,7 @@ export const fetchAllYearConcepts = async (year) => {
   if (!hasSupabaseConfig || !supabase) return EMPTY;
 
   const { data, error } = await supabase
-    .from('nominas')
+    .from('payrolls')
     .select('id, item, category, subcategory, amount, month')
     .eq('year', Number(year))
     .order('month', { ascending: true });
@@ -72,7 +72,7 @@ export const normalizePayrollMetricsPayload = (row) => {
  * ensures each user only reads their own data.
  *
  * @throws {Error} If env vars are missing, the user is not authenticated, or
- *                 the view returns no data (nominas table is empty).
+ *                 the view returns no data (payrolls table is empty).
  * @returns {Promise<ReturnType<typeof normalizePayrollMetricsPayload>>}
  */
 export const fetchPayrollDataFromSupabase = async () => {
@@ -94,24 +94,24 @@ export const fetchPayrollDataFromSupabase = async () => {
     .maybeSingle();
   if (error) throw error;
   if (!data) {
-    throw new Error('No rows found in payroll_metrics_mv. La tabla nominas puede estar vacía.');
+    throw new Error('No rows found in payroll_metrics_mv. La tabla payrolls puede estar vacía.');
   }
   return normalizePayrollMetricsPayload(data);
 };
 
 /**
- * Updates a single nominas row's item, category, and subcategory.
+ * Updates a single payrolls row's item, category, and subcategory.
  * Called when the user edits an unrecognized (or incorrectly classified) concept
  * in the Mi Nómina concept tables.
  *
- * @param {number} id - Primary key of the nominas row.
+ * @param {number} id - Primary key of the payrolls row.
  * @param {{ item: string, category: string, subcategory: string }} fields
  * @returns {Promise<void>}
  */
 export const updateNominaConcept = async (id, { item, category, subcategory }) => {
   if (!hasSupabaseConfig || !supabase) throw new Error('Supabase no configurado');
   const { error } = await supabase
-    .from('nominas')
+    .from('payrolls')
     .update({ item, category, subcategory })
     .eq('id', id);
   if (error) throw error;

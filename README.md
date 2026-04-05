@@ -13,7 +13,7 @@ Google Drive (PDFs de nóminas)
         │
         ▼  pipeline/drive_ingestor.py  (GitHub Actions · 1 vez/mes)
 Supabase PostgreSQL
-├── nominas      — una fila por concepto de nómina
+├── payrolls     — una fila por concepto de nómina
 ├── control      — registro de qué PDFs se han procesado
 └── payroll_metrics_mv — vista que agrega KPIs para la app
         │
@@ -58,8 +58,8 @@ nominas-react/
 │   └── tests/
 │
 ├── supabase/
-│   ├── schema.sql                ← Tablas nominas + control
-│   └── payroll_dashboard_mv.sql  ← Vista de KPIs
+│   ├── schema.sql                ← Tablas payrolls + control
+│   └── payroll_dashboard_view.sql ← Vista de KPIs
 │
 └── .github/workflows/
     ├── deploy.yml                ← Build y deploy de la app
@@ -87,7 +87,7 @@ nominas-react/
 -- (pega el contenido de supabase/schema.sql)
 
 -- Paso 2: crea la vista de KPIs
--- (pega el contenido de supabase/payroll_dashboard_mv.sql)
+-- (pega el contenido de supabase/payroll_dashboard_view.sql)
 ```
 
 > `payroll_metrics_mv` es una vista regular: recalcula automáticamente en cada consulta, sin necesidad de refresh manual.
@@ -204,7 +204,7 @@ python -m pytest -q
 ## Cómo funciona la ingesta
 
 **Qué escribe en Supabase:**
-- `nominas` — año, mes, concepto, importe, categoría, subcategoría
+- `payrolls` — year, month, item, amount, category, subcategory
 - `control` — registro de cada PDF (file_id, md5, estado, fecha)
 
 **Deduplicación:**

@@ -1,5 +1,5 @@
--- Regular VIEW for current schema: public.nominas
--- Columns expected in nominas:
+-- Regular VIEW for current schema: public.payrolls
+-- Columns expected in payrolls:
 -- id, year, month, item, amount, category, subcategory, file_id, file_name, created_at
 --
 -- This view centralizes business formulas so the UI only renders.
@@ -16,7 +16,7 @@ with base as (
     trim(coalesce(n.category, '')) as categoria,
     trim(coalesce(n.subcategory, '')) as subcategoria,
     n.amount::numeric as amount
-  from public.nominas n
+  from public.payrolls n
 ),
 classified as (
   select
