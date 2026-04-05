@@ -32,7 +32,6 @@ export default function PayrollAnatomy({ monthly, annual, history, isPrivate = f
   // Heights (%) for SVG ribbon bands (sum may not be 100 due to deferred savings)
   const irpfH = Math.max((irpfAmt / bruto) * 100, 0);
   const ssH   = Math.max((ssAmt   / bruto) * 100, 0);
-  const netoH = Math.max((neto    / bruto) * 100, 0);
   // The ribbon source (left) always starts at 0 and fills 100%
   // Right side: each band lands proportionally
 

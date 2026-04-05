@@ -11,9 +11,8 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     error: null,
     updatedAt: null,
   });
-  const [latestMonthConcepts, setLatestMonthConcepts] = useState(
-    mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null },
-  );
+  // Holds concepts fetched from Supabase (null = not yet fetched / not applicable)
+  const [fetchedConcepts, setFetchedConcepts] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,20 +41,16 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     };
   }, [enabled, forceMock]);
 
-  // Fetch per-concept breakdown whenever year or auth state changes
+  // Fetch per-concept breakdown whenever year or auth state changes (real data only)
   useEffect(() => {
-    if (forceMock || !enabled || import.meta.env.MODE === 'test') {
-      const yr = selectedYear === 'all' ? '2025' : selectedYear;
-      setLatestMonthConcepts(mockConcepts[yr] ?? mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null });
-      return;
-    }
+    if (forceMock || !enabled || import.meta.env.MODE === 'test') return;
     if (selectedYear === 'all') {
-      setLatestMonthConcepts({ ingresos: [], deducciones: [], mes: null });
+      setFetchedConcepts(null);
       return;
     }
     let cancelled = false;
     fetchLatestMonthConcepts(selectedYear).then((data) => {
-      if (!cancelled) setLatestMonthConcepts(data);
+      if (!cancelled) setFetchedConcepts(data);
     });
     return () => { cancelled = true; };
   }, [selectedYear, enabled, forceMock]);
@@ -65,6 +60,12 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
     const effectiveSourceStatus = forceMock
       ? { source: 'mock-manual', error: null, updatedAt: null }
       : sourceStatus;
+
+    // Concepts: use mock data when in mock mode, fetched data otherwise
+    const yr = selectedYear === 'all' ? '2025' : selectedYear;
+    const latestMonthConcepts = forceMock || !fetchedConcepts
+      ? (mockConcepts[yr] ?? mockConcepts['2025'] ?? { ingresos: [], deducciones: [], mes: null })
+      : fetchedConcepts;
     const availableYears = Object.keys(effectiveDataset.annualByYear).sort(
       (a, b) => Number(b) - Number(a),
     );
@@ -214,5 +215,5 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       trend,
       sourceStatus: effectiveSourceStatus,
     };
-  }, [selectedYear, dataset, sourceStatus, forceMock, latestMonthConcepts]);
+  }, [selectedYear, dataset, sourceStatus, forceMock, fetchedConcepts]);
 };
