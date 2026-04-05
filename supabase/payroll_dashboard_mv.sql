@@ -30,11 +30,24 @@ classified as (
       when concepto ilike '%Tributación I.R.P.F%' then 'irpf'
       when concepto ilike '%IRPF%' and concepto like '%\%%' escape '\' then 'irpf_percent'
       when subcategoria = 'Seguridad Social' then 'ss'
-      when concepto ilike '%PLAN PENSIONES - APORT EMPRESA%' then 'pp_company'
-      when concepto ilike '%APORT. EMPLEADO P. PENS.%' then 'pp_employee'
+      -- Pension: subcategoría takes priority over concept-name patterns.
+      -- Company contribution has categoría=Ingreso; employee has categoría=Deducción.
+      -- Both share subcategoría = 'Ahorro Jubilación'.
+      when subcategoria = 'Ahorro Jubilación' and lower(categoria) = 'ingreso' then 'pp_company'
+      when subcategoria = 'Ahorro Jubilación'                                   then 'pp_employee'
+      -- Fallback patterns for older records without subcategoría populated
+      when concepto ilike '%PLAN PENSIONES%' and (concepto ilike '%EMPRESA%' or concepto ilike '%COMPANY%') then 'pp_company'
+      when concepto ilike '%PLAN PENSIONES%' or concepto ilike '%P. PENS.%'    then 'pp_employee'
+      -- ESPP: prefer subcategoría, fall back to concepto patterns
+      when subcategoria = 'Inversión Acciones (ESPP)' and concepto ilike '%DEDUCC%' then 'espp_deduction'
+      when subcategoria = 'Inversión Acciones (ESPP)'                          then 'espp_refund'
       when concepto ilike '%ESPP DEDUCC%' then 'espp_deduction'
       when concepto ilike '%ESPP REFUND%' then 'espp_refund'
-      when concepto ilike '%RSU GAIN%' or concepto ilike '%STOCK OPTIONS%' then 'rsu'
+      -- RSU: prefer subcategoría, fall back to concepto patterns
+      when subcategoria = 'Ingreso Variable (RSU)'                             then 'rsu'
+      when concepto ilike '%RSU GAIN%' or concepto ilike '%STOCK OPTIONS%'     then 'rsu'
+      -- Deferred/benefits in kind: prefer subcategoría
+      when subcategoria = 'Beneficio en Especie'                               then 'deferred'
       when concepto ilike '%TICKET REST%' or concepto ilike '%TICKET TRANSPORTE%' or concepto ilike '%FITNESS%' or concepto ilike '%RETRIB. FLEXIBLE%' then 'deferred'
       else 'other'
     end as bucket

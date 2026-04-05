@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BarChart3,
   Briefcase,
-  Calculator,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -30,7 +29,6 @@ import {
   Upload,
   Wallet,
 } from 'lucide-react';
-import PayrollAnatomy from './components/PayrollAnatomy';
 import ProgressBar from './components/ProgressBar';
 import SankeyChart from './components/SankeyChart';
 import StatCard from './components/StatCard';
@@ -586,7 +584,6 @@ const App = () => {
     { id: 'evolution',   label: 'Evolución',      icon: BarChart3       },
     { id: 'tax',         label: 'Fiscalidad',     icon: Landmark        },
     { id: 'investments', label: 'Inversiones',    icon: Briefcase       },
-    { id: 'simuladores', label: 'Simuladores',    icon: Calculator      },
   ];
 
   const PAGE_META = {
@@ -595,7 +592,6 @@ const App = () => {
     evolution:   { title: 'Evolución e Histórico',  sub: 'Tendencias y progresión salarial' },
     tax:         { title: 'Tramos e Impuestos',     sub: 'Fiscalidad y eficiencia tributaria' },
     investments: { title: 'Cartera e Inversiones',  sub: `Sesión: ${user?.email} · Fuente: Supabase` },
-    simuladores: { title: 'Simuladores',            sub: 'Herramientas de planificación financiera' },
   };
 
   const pageMeta = PAGE_META[activeTab] ?? PAGE_META.overview;
@@ -607,11 +603,11 @@ const App = () => {
       <aside className="w-56 shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen sticky top-0 z-20">
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-extrabold text-sm shrink-0">
-            PI
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-extrabold text-base shrink-0 select-none">
+            €
           </div>
           <span className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">
-            PayrollIntel
+            NóminaClara
           </span>
         </div>
 
@@ -725,17 +721,12 @@ const App = () => {
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
           return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Anatomía Visual */}
+            {/* Distribución mensual de la nómina */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
               <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6">
-                Anatomía Visual de tu Nómina
+                Distribución mensual de tu nómina
               </h2>
-              <PayrollAnatomy
-                monthly={selectedData.monthly}
-                annual={annual}
-                history={history}
-                isPrivate={isPrivacyMode}
-              />
+              <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
             </div>
 
             {/* Conceptos tables */}
@@ -1582,24 +1573,6 @@ const App = () => {
           </div>
         )}
 
-        {/* ── Simuladores (placeholder) ─────────────────────────── */}
-        {activeTab === 'simuladores' && (
-          <div className="animate-in fade-in duration-500 flex flex-col items-center justify-center py-24 gap-6 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-              <Calculator className="text-indigo-500" size={32} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold mb-2">Simuladores</h2>
-              <p className="text-slate-400 text-sm max-w-sm">
-                Herramientas de planificación: simulador de bonus, impacto de subida salarial,
-                proyección de jubilación. Próximamente.
-              </p>
-            </div>
-            <span className="text-xs font-bold uppercase tracking-widest text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-4 py-1.5 rounded-full">
-              Próximamente
-            </span>
-          </div>
-        )}
 
         </main>
       </div>

@@ -40,7 +40,7 @@ const RET_CLR  = '#dc2626'; // red-600     — "Retenciones"  group
 
 const COMP_NODES = [
   { key: 'neto',    label: 'Sueldo Neto',    color: '#10b981', text: '#065f46' },
-  { key: 'pension', label: 'Plan Pensiones', color: '#3b82f6', text: '#1e3a8a' },
+  { key: 'pension', label: 'Pensiones (emp+empresa)', color: '#3b82f6', text: '#1e3a8a' },
   { key: 'esppRsu', label: 'ESPP / RSU',     color: '#8b5cf6', text: '#4c1d95' },
 ];
 
