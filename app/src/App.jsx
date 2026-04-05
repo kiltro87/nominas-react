@@ -224,7 +224,6 @@ const App = () => {
   const [useMockData, setUseMockData] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState('2025');
-  const [currencySync, setCurrencySync] = useState({ status: 'idle', message: '' });
   const [excelUpload, setExcelUpload] = useState({
     status: 'idle', // idle | parsing | lookback | saving | done | error
     rows: [],
@@ -256,18 +255,6 @@ const App = () => {
   const pensionCompanyPct = pensionTotal > 0 ? Number((((annual.pensionCompanyTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
   const pensionEmployeePct = pensionTotal > 0 ? Number((((annual.pensionEmployeeTotal ?? 0) / pensionTotal) * 100).toFixed(1)) : 0;
 
-  const handleSyncCurrency = async () => {
-    setCurrencySync({ status: 'loading', message: '' });
-    try {
-      const count = await syncExchangeRatesFromBDE();
-      setCurrencySync({
-        status: 'success',
-        message: `Sincronización completada: ${count} registros añadidos/actualizados`,
-      });
-    } catch (err) {
-      setCurrencySync({ status: 'error', message: err.message });
-    }
-  };
 
   const handleExcelUpload = async (e) => {
     const file = e.target.files?.[0];

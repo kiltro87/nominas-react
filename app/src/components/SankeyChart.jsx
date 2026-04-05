@@ -60,23 +60,22 @@ export default function SankeyChart({ annual, history, isPrivate = false }) {
   const scale    = (innerH - totalGap) / bruto;
 
   // ── Destination nodes (with gaps) ──
-  let dCumY = PT;
-  const destNodes = segments.map((s) => {
+  const destNodes = segments.reduce((acc, s) => {
+    const prev = acc[acc.length - 1];
+    const y = prev ? prev.y + prev.h + GAP : PT;
     const h = Math.max(s.value * scale, 3);
-    const node = { ...s, y: dCumY, h };
-    dCumY += h + GAP;
-    return node;
-  });
+    return [...acc, { ...s, y, h }];
+  }, []);
 
   // ── Source ports (continuous, no gaps) ──
-  let sCumY = PT;
-  const srcPorts = segments.map((s) => {
+  const srcPorts = segments.reduce((acc, s) => {
+    const prev = acc[acc.length - 1];
+    const y = prev ? prev.y + prev.h : PT;
     const h = Math.max(s.value * scale, 3);
-    const port = { y: sCumY, h };
-    sCumY += h;
-    return port;
-  });
-  const sourceH = sCumY - PT;
+    return [...acc, { y, h }];
+  }, []);
+  const lastPort = srcPorts[srcPorts.length - 1];
+  const sourceH = lastPort ? lastPort.y + lastPort.h - PT : 0;
 
   // ── Bezier path ──
   const cx1 = SX + SW + (DX - SX - SW) * CURVE_CTRL;
