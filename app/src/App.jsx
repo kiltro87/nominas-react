@@ -27,6 +27,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import ProgressBar from './components/ProgressBar';
+import SankeyChart from './components/SankeyChart';
 import StatCard from './components/StatCard';
 import { usePayrollData } from './hooks/usePayrollData';
 import { usePortfolioData } from './hooks/usePortfolioData';
@@ -866,6 +867,24 @@ const App = () => {
                   <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                 </div>
               </div>
+            </div>
+
+            {/* ── Sankey: distribución mensual de nómina ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <PieChartIcon className="text-emerald-500" size={22} /> Distribución de la Nómina Mensual
+                  </h2>
+                  <p className="text-slate-400 text-sm mt-0.5">
+                    Cómo se reparte el bruto mensual medio entre neto, impuestos y ahorro
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">
+                  {year === 'all' ? 'Promedio histórico' : `Año ${year}`}
+                </span>
+              </div>
+              <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
             </div>
           </div>
         )}
