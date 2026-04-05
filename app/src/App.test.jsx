@@ -13,7 +13,7 @@ describe('App', () => {
 
     await user.selectOptions(selector, '2024');
     expect(selector).toHaveValue('2024');
-    await user.click(screen.getByRole('button', { name: /EVOLUCION/i }));
+    await user.click(screen.getByRole('button', { name: /Evolución/i }));
     expect(screen.getByText('Ene 2024')).toBeInTheDocument();
   });
 });
