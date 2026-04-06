@@ -570,7 +570,7 @@ const App = () => {
             €
           </div>
           <span className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">
-            NóminaClara
+            Gestor de Nóminas
           </span>
         </div>
 
@@ -931,149 +931,37 @@ const App = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-                <div className="flex justify-between items-center mb-10">
-                  <div>
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                      <PieChartIcon className="text-blue-500" size={22} /> Flujo de Compensacion YTD
-                    </h2>
-                    <p className="text-slate-400 text-sm">Visualizacion del Bruto vs Neto Real</p>
-                  </div>
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-bold">Stocks e Inversion</h3>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">YTD Actual</span>
                 </div>
-
-                <div className="relative pt-6 pb-2">
-                  <div className="flex flex-col gap-8">
-                    <div className="relative">
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                        <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">
-                          Salario Bruto YTD
-                        </span>
-                        <span className="text-xl font-bold">
-                          {isPrivacyMode ? '••••••' : formatCurrency(annual.bruto)}
-                        </span>
-                      </div>
-                      <div className="flex justify-center h-8">
-                        <div className="w-px bg-slate-200 dark:bg-slate-700 h-full relative">
-                          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 rounded-full bg-slate-300" />
-                        </div>
-                      </div>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-slate-500 font-medium">ESPP (Stock Purchase)</span>
+                      <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(esppYtd)}</span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-rose-500 font-bold text-xs uppercase mb-2">
-                          <TrendingDown size={14} /> Retenciones y Gastos
-                        </div>
-                        <div className="bg-rose-50/50 dark:bg-rose-900/10 p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30">
-                          <ProgressBar
-                            label="IRPF"
-                            current={annual.irpfAvgPct}
-                            total={100}
-                            colorClass="bg-rose-500"
-                          />
-                          <ProgressBar
-                            label="Seguridad Social"
-                            current={annual.ssAvgPct}
-                            total={100}
-                            colorClass="bg-rose-400"
-                          />
-                          <div className="mt-4 pt-4 border-t border-rose-100 dark:border-rose-900/20 flex justify-between">
-                            <span className="text-xs font-bold text-rose-600 uppercase">Total Deducido</span>
-                            <span className="text-sm font-bold text-rose-700">
-                              {isPrivacyMode ? '•••' : formatCurrency(annual.totalDeducido)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs uppercase mb-2">
-                          <ShieldCheck size={14} /> Patrimonio Generado
-                        </div>
-                        <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 h-full flex flex-col justify-between">
-                          <div>
-                            <ProgressBar
-                              label="Neto Efectivo"
-                              current={annual.netoEfectivoPct}
-                              total={100}
-                              colorClass="bg-emerald-500"
-                            />
-                            <ProgressBar
-                              label="Ahorro Diferido"
-                              current={annual.ahorroDiferidoPct}
-                              total={100}
-                              colorClass="bg-emerald-400"
-                            />
-                          </div>
-                          <div className="mt-4 pt-4 border-t border-emerald-100 dark:border-emerald-900/20 flex justify-between">
-                            <span className="text-xs font-bold text-emerald-600 uppercase">Neto + Ahorro</span>
-                            <span className="text-sm font-bold text-emerald-700">
-                              {isPrivacyMode ? '•••' : formatCurrency(annual.netoEfectivoAmount + annual.deferredAmount)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                    <div className="text-[10px] text-emerald-500 font-bold">
+                      Aportacion con 15% descuento
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-slate-500 font-medium">RSUs (Vesting)</span>
+                      <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(rsuYtd)}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">
+                      Proximo evento: Oct 2025
                     </div>
                   </div>
                 </div>
-
-                <div className="mt-12 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl flex items-start gap-3">
-                  <Info className="text-blue-500 shrink-0" size={20} />
-                  <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
-                    <strong>Analisis de Eficiencia:</strong> Tu tasa de ahorro efectiva es del{' '}
-                    <span className="font-bold">
-                      {annual.bruto > 0 ? formatPercent((annual.ahorroTotal / annual.bruto) * 100) : '—'}
-                    </span>.
-                    El ahorro diferido ({formatCurrency(annual.deferredAmount ?? 0)}) reduce tu base imponible aplicando un tipo marginal del{' '}
-                    <span className="font-bold">{formatPercent(irpf.tipoMarginal)}</span>.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold">Stocks e Inversion</h3>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">YTD Actual</span>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-slate-500 font-medium">ESPP (Stock Purchase)</span>
-                        <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(esppYtd)}</span>
-                      </div>
-                      <div className="text-[10px] text-emerald-500 font-bold">
-                        Aportacion con 15% descuento
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-slate-500 font-medium">RSUs (Vesting)</span>
-                        <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(rsuYtd)}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">
-                        Proximo evento: Oct 2025
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('investments')}
-                    className="w-full mt-6 py-3 rounded-xl border border-blue-200 dark:border-blue-900/50 text-blue-600 text-sm font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center justify-center gap-2"
-                  >
-                    Ver Detalles <ArrowRight size={14} />
-                  </button>
-                </div>
-
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 text-white shadow-xl shadow-blue-600/20 relative overflow-hidden">
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-bold mb-2">Simulador de Bonus</h3>
-                    <p className="text-blue-100 text-xs mb-4 leading-relaxed">
-                      Calcula cuanto recibiras neto de tu variable anual tras impuestos.
-                    </p>
-                    <p className="text-blue-200/60 text-xs italic">Proximamente</p>
-                  </div>
-                  <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-                </div>
+                <button
+                  onClick={() => setActiveTab('investments')}
+                  className="w-full mt-6 py-3 rounded-xl border border-blue-200 dark:border-blue-900/50 text-blue-600 text-sm font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  Ver Detalles <ArrowRight size={14} />
+                </button>
               </div>
             </div>
 

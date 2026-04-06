@@ -42,7 +42,7 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
         dominantBaseline="middle"
         fontSize={11}
         fontWeight={600}
-        fill={isDetail ? '#1e293b' : 'white'}
+        fill={'#1e293b'}
         style={{ pointerEvents: 'none' }}
       >
         {payload.name}
@@ -69,15 +69,26 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
 // targetControlX are the bezier control points computed internally by recharts.
 function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload }) {
   if (!linkWidth) return null;
-  const color = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
+  const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
+  const colorTarget = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
+  const gradId = `linkGrad-${payload?.source?.name?.replace(/\W/g, '')}-${payload?.target?.name?.replace(/\W/g, '')}`;
+
   return (
-    <path
-      d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-      strokeWidth={linkWidth}
-      stroke={color}
-      strokeOpacity={0.35}
-      fill="none"
-    />
+    <>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={colorSource} />
+          <stop offset="100%" stopColor={colorTarget} />
+        </linearGradient>
+      </defs>
+      <path
+        d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+        strokeWidth={linkWidth}
+        stroke={`url(#${gradId})`}
+        strokeOpacity={0.65}
+        fill="none"
+      />
+    </>
   );
 }
 
