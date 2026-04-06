@@ -931,28 +931,51 @@ const App = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold">Stocks e Inversion</h3>
-                  <span className="text-[10px] uppercase font-bold text-slate-400">YTD Actual</span>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-slate-500 font-medium">ESPP (Stock Purchase)</span>
-                      <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(esppYtd)}</span>
-                    </div>
-                    <div className="text-[10px] text-emerald-500 font-bold">
-                      Aportacion con 15% descuento
-                    </div>
+              {/* ── Sankey: distribución mensual de nómina ── */}
+              <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm flex flex-col">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <PieChartIcon className="text-emerald-500" size={22} /> Distribución de la Nómina Mensual
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-0.5">
+                      Del bruto mensual medio a Compensación y Retenciones.
+                      {year === 'all' ? ` (Histórico)` : ` (${year})`}
+                    </p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-slate-500 font-medium">RSUs (Vesting)</span>
-                      <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(rsuYtd)}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">
+                    {year === 'all' ? 'Promedio' : `Año ${year}`}
+                  </span>
+                </div>
+                <div className="flex-1 mt-4">
+                  <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
+                </div>
+              </div>
+
+              <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-bold">Stocks e Inversion</h3>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">YTD Actual</span>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-slate-500 font-medium">ESPP (Stock Purchase)</span>
+                        <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(esppYtd)}</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-500 font-bold">
+                        Aportacion con 15% descuento
+                      </div>
                     </div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">
-                      Proximo evento: Oct 2025
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-slate-500 font-medium">RSUs (Vesting)</span>
+                        <span className="text-sm font-bold">{isPrivacyMode ? '•••' : formatCurrency(rsuYtd)}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">
+                        Proximo evento: Oct 2025
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -963,25 +986,6 @@ const App = () => {
                   Ver Detalles <ArrowRight size={14} />
                 </button>
               </div>
-            </div>
-
-            {/* ── Sankey: distribución mensual de nómina ── */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                <div>
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                    <PieChartIcon className="text-emerald-500" size={22} /> Distribución de la Nómina Mensual
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-0.5">
-                    Del bruto mensual medio a Compensación (neto + ahorro) y Retenciones (IRPF + SS).
-                    Datos: {year === 'all' ? `media histórica (${history.length} meses)` : `media mensual ${year} (${history.length} nóminas)`}.
-                  </p>
-                </div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">
-                  {year === 'all' ? 'Promedio histórico' : `Año ${year}`}
-                </span>
-              </div>
-              <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
             </div>
           </div>
         )}

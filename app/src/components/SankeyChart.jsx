@@ -5,7 +5,7 @@ const fmt = (v) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
 const NODE_COLORS = {
-  'BRUTO':          '#64748b',
+  'BRUTO':          '#3b82f6',
   'Compensación':   '#059669',
   'Retenciones':    '#dc2626',
   'Sueldo Neto':    '#10b981',
@@ -68,7 +68,7 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
 // and uses a stroked bezier path (not a filled polygon). sourceControlX /
 // targetControlX are the bezier control points computed internally by recharts.
 function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload }) {
-  if (!linkWidth) return null;
+  if (linkWidth == null) return null;
   const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
   const colorTarget = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
   const gradId = `linkGrad-${payload?.source?.name?.replace(/\W/g, '')}-${payload?.target?.name?.replace(/\W/g, '')}`;
@@ -83,7 +83,7 @@ function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, target
       </defs>
       <path
         d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-        strokeWidth={linkWidth}
+        strokeWidth={Math.max(linkWidth, 1.5)}
         stroke={`url(#${gradId})`}
         strokeOpacity={0.65}
         fill="none"
