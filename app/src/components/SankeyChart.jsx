@@ -159,12 +159,12 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
   ].filter((l) => l.value > 0 && l.source !== undefined && l.target !== undefined);
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full min-h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
           data={{ nodes, links }}
           nodeWidth={16}
-          nodePadding={14}
+          nodePadding={4}
           sort={false}
           margin={{ top: 20, right: 200, bottom: 10, left: 10 }}
           node={(props) => <CustomNode {...props} bruto={bruto} isPrivate={isPrivate} />}
