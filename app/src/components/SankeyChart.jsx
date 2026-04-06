@@ -172,7 +172,7 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
           nodeWidth={16}
           nodePadding={4}
           sort={false}
-          margin={{ top: 20, right: 200, bottom: 10, left: 10 }}
+          margin={{ top: 20, right: 120, bottom: 10, left: 10 }}
           node={(props) => <CustomNode {...props} bruto={bruto} isPrivate={isPrivate} />}
           link={(props) => <CustomLink {...props} />}
         >
