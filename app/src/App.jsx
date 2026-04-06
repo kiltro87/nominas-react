@@ -92,16 +92,32 @@ const PortfolioChart = ({ transactions }) => {
     };
   });
 
+  // 1. Filtrar puntos inválidos y sortear cronológicamente para garantizar que la escala
+  // numérica tiempo espacia los puntos reales correctamente (scatter-like).
+  const validData = chartData.filter((d) => typeof d.ts === 'number' && !isNaN(d.ts)).sort((a, b) => a.ts - b.ts);
+
+  // 2. Generar "ticks" (marcas en el eje X) estrictamente cada 1 de Enero
+  // para evitar que Recharts ponga múltiples ticks en el mismo año.
+  const yearTicks = [];
+  if (validData.length > 0) {
+    const minYear = new Date(validData[0].ts).getFullYear();
+    const maxYear = new Date(validData[validData.length - 1].ts).getFullYear();
+    for (let y = minYear; y <= maxYear; y++) {
+      yearTicks.push(new Date(y, 0, 1).getTime());
+    }
+  }
+
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 8, left: 16 }}>
+      <LineChart data={validData} margin={{ top: 8, right: 24, bottom: 8, left: 16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
         <XAxis
           dataKey="ts"
           type="number"
           scale="time"
           domain={['dataMin', 'dataMax']}
-          tickFormatter={(ts) => ts ? new Date(ts).getFullYear().toString() : ''}
+          ticks={yearTicks}
+          tickFormatter={(ts) => new Date(ts).getFullYear().toString()}
           tick={{ fontSize: 11, fill: '#94a3b8' }}
           tickLine={false}
           axisLine={{ stroke: '#e2e8f0' }}
