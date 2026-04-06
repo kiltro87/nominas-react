@@ -115,7 +115,7 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
   const ss      = monthData ? monthData.ss      : mo(annual?.totalSS);
   const pension = monthData ? monthData.pension : mo((annual?.pensionCompanyTotal ?? 0) + (annual?.pensionEmployeeTotal ?? 0));
   const esppRsu = monthData ? monthData.esppRsu : mo((annual?.esppYtd ?? 0) + (annual?.rsuYtd ?? 0));
-  const flex    = monthData ? monthData.flex    : Math.max(0, mo(annual?.ahorroTotal ?? 0) - pension - esppRsu);
+  const flex    = monthData ? monthData.flex    : mo(annual?.deferredAmount ?? 0);
 
   if (!bruto) return <p className="text-sm text-slate-400 py-8 text-center">Sin datos disponibles.</p>;
 
@@ -154,7 +154,7 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
   ].filter((l) => l.value > 0 && l.source !== undefined && l.target !== undefined);
 
   return (
-    <div className="w-full" style={{ height: 400 }}>
+    <div className="w-full h-full min-h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
           data={{ nodes, links }}
