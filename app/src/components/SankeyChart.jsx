@@ -26,15 +26,21 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
   if (!payload?.name || height <= 0) return null;
   const color     = NODE_COLORS[payload.name] ?? '#64748b';
   const isDetail  = !MID_NODES.has(payload.name);
-  const midY      = y + height / 2;
+  // OVERRIDE: Recharts/D3-Sankey truncates the last node's height if layout pushes it past the bottom margin.
+  // We compute its mathematically correct height relative to the chart's inner height (approx 440px).
+  // This visually restores the node box to match its incoming connector line perfectly.
+  const expectedHeight = bruto && payload.value ? (payload.value / bruto) * 440 : height;
+  const finalHeight = Math.max(height, expectedHeight * 0.95);
+  
+  const midY      = y + finalHeight / 2;
   const labelX    = isDetail ? x + width + 8 : x + width / 2;
   const anchor    = isDetail ? 'start' : 'middle';
   const pct       = bruto ? `${((payload.value ?? 0) / bruto * 100).toFixed(0)}%` : '';
-  const twoLines  = isDetail && height > 22 && !isPrivate;
+  const twoLines  = isDetail && finalHeight > 22 && !isPrivate;
 
   return (
     <g>
-      <rect x={x} y={y} width={width} height={Math.max(height, 2)} fill={color} fillOpacity={0.9} rx={3} />
+      <rect x={x} y={y} width={width} height={Math.max(finalHeight, 2)} fill={color} fillOpacity={0.9} rx={3} />
       <text
         x={labelX}
         y={twoLines ? midY - 7 : midY}
@@ -73,6 +79,8 @@ function CustomLink(props) {
 
   const validWidth = isNaN(Number(linkWidth)) || Number(linkWidth) <= 0 ? 3 : Math.max(Number(linkWidth), 1.5);
   const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
+  const colorTarget = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
+  const gradId = `linkGrad-${payload?.source?.name?.replace(/[^a-zA-Z0-9]/g, '')}-${payload?.target?.name?.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   // Fallbacks if Recharts D3 engine hallucinates NaNs during overflow relaxation:
   const sx = isNaN(sourceX) ? 0 : sourceX;
@@ -83,13 +91,21 @@ function CustomLink(props) {
   const cx2 = isNaN(targetControlX) ? tx : targetControlX;
 
   return (
-    <path
-      d={`M${sx},${sy} C${cx1},${sy} ${cx2},${ty} ${tx},${ty}`}
-      strokeWidth={validWidth}
-      stroke={colorSource}
-      strokeOpacity={0.65}
-      fill="none"
-    />
+    <>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={colorSource} />
+          <stop offset="100%" stopColor={colorTarget} />
+        </linearGradient>
+      </defs>
+      <path
+        d={`M${sx},${sy} C${cx1},${sy} ${cx2},${ty} ${tx},${ty}`}
+        strokeWidth={validWidth}
+        stroke={`url(#${gradId})`}
+        strokeOpacity={0.65}
+        fill="none"
+      />
+    </>
   );
 }
 
