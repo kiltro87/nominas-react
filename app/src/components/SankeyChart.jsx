@@ -69,31 +69,19 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
 // targetControlX are the bezier control points computed internally by recharts.
 function CustomLink(props) {
   const { sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload } = props;
-  
-  if ([sourceX, sourceY, targetX, targetY].some(isNaN)) return null;
+  if (!sourceX || !targetX) return null;
 
   const validWidth = isNaN(Number(linkWidth)) || Number(linkWidth) <= 0 ? 1.5 : Math.max(Number(linkWidth), 1.5);
-
   const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
-  const colorTarget = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
-  const gradId = `linkGrad-${payload?.source?.name?.replace(/[^a-zA-Z0-9]/g, '')}-${payload?.target?.name?.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
-    <g>
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={colorSource} />
-          <stop offset="100%" stopColor={colorTarget} />
-        </linearGradient>
-      </defs>
-      <path
-        d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-        strokeWidth={validWidth}
-        stroke={`url(#${gradId})`}
-        strokeOpacity={0.65}
-        fill="none"
-      />
-    </g>
+    <path
+      d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+      strokeWidth={validWidth}
+      stroke={colorSource}
+      strokeOpacity={0.65}
+      fill="none"
+    />
   );
 }
 
@@ -159,8 +147,8 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
   ].filter((l) => l.value > 0 && l.source !== undefined && l.target !== undefined);
 
   return (
-    <div className="w-full h-full min-h-[400px]">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full overflow-visible" style={{ height: 480, minHeight: 480 }}>
+      <ResponsiveContainer width="100%" height={480}>
         <Sankey
           data={{ nodes, links }}
           nodeWidth={16}
