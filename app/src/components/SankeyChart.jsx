@@ -26,21 +26,15 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
   if (!payload?.name || height <= 0) return null;
   const color     = NODE_COLORS[payload.name] ?? '#64748b';
   const isDetail  = !MID_NODES.has(payload.name);
-  // OVERRIDE: Recharts/D3-Sankey truncates the last node's height if layout pushes it past the bottom margin.
-  // We compute its mathematically correct height relative to the chart's inner height (approx 440px).
-  // This visually restores the node box to match its incoming connector line perfectly.
-  const expectedHeight = bruto && payload.value ? (payload.value / bruto) * 440 : height;
-  const finalHeight = Math.max(height, expectedHeight * 0.95);
-  
-  const midY      = y + finalHeight / 2;
+  const midY      = y + height / 2;
   const labelX    = isDetail ? x + width + 8 : x + width / 2;
   const anchor    = isDetail ? 'start' : 'middle';
   const pct       = bruto ? `${((payload.value ?? 0) / bruto * 100).toFixed(0)}%` : '';
-  const twoLines  = isDetail && finalHeight > 22 && !isPrivate;
+  const twoLines  = isDetail && height > 22 && !isPrivate;
 
   return (
     <g>
-      <rect x={x} y={y} width={width} height={Math.max(finalHeight, 2)} fill={color} fillOpacity={0.9} rx={3} />
+      <rect x={x} y={y} width={width} height={Math.max(height, 2)} fill={color} fillOpacity={0.9} rx={3} />
       <text
         x={labelX}
         y={twoLines ? midY - 7 : midY}
@@ -93,7 +87,7 @@ function CustomLink(props) {
   return (
     <>
       <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={sx} y1={sy} x2={tx} y2={ty}>
           <stop offset="0%" stopColor={colorSource} />
           <stop offset="100%" stopColor={colorTarget} />
         </linearGradient>
