@@ -5,9 +5,9 @@ import { calculateIrpfBreakdownMadrid } from '../utils/irpf';
 import { fetchPayrollDataFromSupabase, fetchAllYearConcepts } from '../services/payrollRepository';
 
 export const usePayrollData = (selectedYear, enabled = true, forceMock = false) => {
-  const [dataset, setDataset] = useState(payrollData);
+  const [dataset, setDataset] = useState(null);
   const [sourceStatus, setSourceStatus] = useState({
-    source: 'mock',
+    source: forceMock ? 'mock' : 'loading',
     error: null,
     updatedAt: null,
   });
@@ -59,18 +59,45 @@ export const usePayrollData = (selectedYear, enabled = true, forceMock = false) 
       ? { source: 'mock-manual', error: null, updatedAt: null }
       : sourceStatus;
 
+    // Si aún no hemos cargado datos de Supabase y no estamos forzando Mock, 
+    // devolver un cascarón vacío para que la UI marque ceros temporalmente en lugar
+    // de mostrar parpadeo (flicker) con los datos del mock.
+    if (!effectiveDataset) {
+      return {
+        year: selectedYear,
+        availableYears: [],
+        selectedData: {
+          monthly: { bruto: 0, neto: 0, irpf: 0, totalIngresos: 0, ahorroFiscal: 0, jubilacion: 0, especie: 0 },
+          annual: { bruto: 0, neto: 0, irpfEfectivo: 0, ahorroTotal: 0, totalImpuestos: 0, totalSS: 0 },
+          history: [],
+        },
+        annual: { bruto: 0, neto: 0, irpfEfectivo: 0, ahorroTotal: 0, totalImpuestos: 0, totalSS: 0 },
+        irpf: calculateIrpfBreakdownMadrid(0),
+        history: [],
+        trends: { bruto: 0, neto: 0, ahorroTotal: 0 },
+        availableMonths: [],
+        monthData: null,
+        totalConceptos: 0,
+        sourceStatus: effectiveSourceStatus,
+        taxBrackets: [],
+        vestingSchedule: []
+      };
+    }
+
     // Concepts: 'all' → empty; mock mode → static mock data; otherwise → fetched from Supabase.
     // fetchedConcepts is { year, data } — only used when the stored year matches selectedYear,
     // preventing stale data from a previous year from bleeding into the current view.
     // Shape: { byMonth: Record<number, {ingresos, deducciones}>, availableMonths: number[] }
     const EMPTY_YEAR_CONCEPTS = { byMonth: {}, availableMonths: [] };
-    const fetchedForThisYear =
-      fetchedConcepts?.year === selectedYear ? fetchedConcepts.data : null;
+    const fetchedForThisYear = fetchedConcepts?.year === selectedYear ? fetchedConcepts.data : null;
+    
+    // Al igual que con el dataset global, si NO forzamos mock,
+    // esperamos a que `fetchedForThisYear` exista o devolvemos VACÍO temporalmente.
     const conceptsByYear = selectedYear === 'all'
       ? EMPTY_YEAR_CONCEPTS
-      : forceMock || !fetchedForThisYear
+      : forceMock
         ? (mockConceptsByYear[selectedYear] ?? mockConceptsByYear['2025'] ?? EMPTY_YEAR_CONCEPTS)
-        : fetchedForThisYear;
+        : (fetchedForThisYear ?? EMPTY_YEAR_CONCEPTS);
     const availableYears = Object.keys(effectiveDataset.annualByYear).sort(
       (a, b) => Number(b) - Number(a),
     );
