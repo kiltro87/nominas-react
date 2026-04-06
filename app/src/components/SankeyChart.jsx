@@ -69,14 +69,22 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
 // targetControlX are the bezier control points computed internally by recharts.
 function CustomLink(props) {
   const { sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload } = props;
-  if (!sourceX || !targetX) return null;
+  if (sourceX == null || targetX == null) return null;
 
-  const validWidth = isNaN(Number(linkWidth)) || Number(linkWidth) <= 0 ? 1.5 : Math.max(Number(linkWidth), 1.5);
+  const validWidth = isNaN(Number(linkWidth)) || Number(linkWidth) <= 0 ? 3 : Math.max(Number(linkWidth), 1.5);
   const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
+
+  // Fallbacks if Recharts D3 engine hallucinates NaNs during overflow relaxation:
+  const sx = isNaN(sourceX) ? 0 : sourceX;
+  const sy = isNaN(sourceY) ? 0 : sourceY;
+  const tx = isNaN(targetX) ? 0 : targetX;
+  const ty = isNaN(targetY) ? 0 : targetY;
+  const cx1 = isNaN(sourceControlX) ? sx : sourceControlX;
+  const cx2 = isNaN(targetControlX) ? tx : targetControlX;
 
   return (
     <path
-      d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+      d={`M${sx},${sy} C${cx1},${sy} ${cx2},${ty} ${tx},${ty}`}
       strokeWidth={validWidth}
       stroke={colorSource}
       strokeOpacity={0.65}
