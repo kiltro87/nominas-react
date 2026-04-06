@@ -67,14 +67,19 @@ function CustomNode({ x, y, width, height, payload, bruto, isPrivate }) {
 // recharts passes sourceY/targetY as the CENTER of the band (not top edge),
 // and uses a stroked bezier path (not a filled polygon). sourceControlX /
 // targetControlX are the bezier control points computed internally by recharts.
-function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload }) {
-  if (linkWidth == null) return null;
+function CustomLink(props) {
+  const { sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload } = props;
+  
+  if ([sourceX, sourceY, targetX, targetY].some(isNaN)) return null;
+
+  const validWidth = isNaN(Number(linkWidth)) || Number(linkWidth) <= 0 ? 1.5 : Math.max(Number(linkWidth), 1.5);
+
   const colorSource = NODE_COLORS[payload?.source?.name] ?? '#cbd5e1';
   const colorTarget = NODE_COLORS[payload?.target?.name] ?? '#94a3b8';
-  const gradId = `linkGrad-${payload?.source?.name?.replace(/\W/g, '')}-${payload?.target?.name?.replace(/\W/g, '')}`;
+  const gradId = `linkGrad-${payload?.source?.name?.replace(/[^a-zA-Z0-9]/g, '')}-${payload?.target?.name?.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
-    <>
+    <g>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor={colorSource} />
@@ -83,12 +88,12 @@ function CustomLink({ sourceX, sourceY, sourceControlX, targetX, targetY, target
       </defs>
       <path
         d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-        strokeWidth={Math.max(linkWidth, 1.5)}
+        strokeWidth={validWidth}
         stroke={`url(#${gradId})`}
         strokeOpacity={0.65}
         fill="none"
       />
-    </>
+    </g>
   );
 }
 
@@ -154,7 +159,7 @@ export default function SankeyChart({ annual, history, monthData, isPrivate = fa
   ].filter((l) => l.value > 0 && l.source !== undefined && l.target !== undefined);
 
   return (
-    <div className="w-full h-full min-h-[300px]">
+    <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
           data={{ nodes, links }}

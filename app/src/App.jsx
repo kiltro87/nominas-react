@@ -947,8 +947,10 @@ const App = () => {
                     {year === 'all' ? 'Promedio' : `Año ${year}`}
                   </span>
                 </div>
-                <div className="flex-1 mt-4">
-                  <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
+                <div className="flex-1 mt-4 relative min-h-[350px]">
+                  <div className="absolute inset-0">
+                    <SankeyChart annual={annual} history={history} isPrivate={isPrivacyMode} />
+                  </div>
                 </div>
               </div>
 
